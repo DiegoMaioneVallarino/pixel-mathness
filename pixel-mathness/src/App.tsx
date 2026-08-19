@@ -3,10 +3,11 @@ import "./App.css";
 
 import type {
     ColorLayer,
-    AssemblyFamily,
+    AssemblyHierarchy,
     AnalyzedFace,
     PixelMatrix
 } from "./pixelmathness";
+
 type FaceView = {
     analysis: AnalyzedFace;
     matrix: PixelMatrix;
@@ -18,12 +19,13 @@ import {
     extractSilhouette,
     silhouetteToMatrix,
     separateColorLayers,
-    createAssemblyFamilies,
+    createAssemblyHierarchy,
     analyzeStrokeGraph,
     strokeGraphToMatrix,
     detectStrokeFaces,
     strokeFacesToMatrix,
     analyzeFaceContents,
+    createOutlineLayer,
     faceToMatrix
 } from "./pixelmathness";
 
@@ -51,8 +53,14 @@ const [strokeGraphMatrix, setStrokeGraphMatrix] =
     const [colorLayers, setColorLayers] =
         useState<ColorLayer[]>([]);
 
-    const [assemblyFamilies, setAssemblyFamilies] =
-        useState<AssemblyFamily[]>([]);
+  const [
+    assemblyHierarchy,
+    setAssemblyHierarchy
+] =
+    useState<AssemblyHierarchy | null>(
+        null
+    );
+
 const [
     strokeFacesMatrix,
     setStrokeFacesMatrix
@@ -125,12 +133,39 @@ const [
 const layers = separateColorLayers(matrix);
 
 // Buscar la Color Cloud negra
-const strokeLayer = layers.find(
-    layer =>
-        layer.color.r === 0 &&
-        layer.color.g === 0 &&
-        layer.color.b === 0
+
+const OUTLINE_THRESHOLD = 40;
+
+const outlineLayers = layers.filter(layer => {
+
+    const { r, g, b } = layer.color;
+
+    const isPureBlack =
+        r === 0 &&
+        g === 0 &&
+        b === 0;
+
+    const luminance =
+        0.2126 * r +
+        0.7152 * g +
+        0.0722 * b;
+
+    return (
+        isPureBlack ||
+        luminance <= OUTLINE_THRESHOLD
+    );
+});
+
+console.log(
+    "OUTLINE LAYERS:",
+    outlineLayers
 );
+
+const strokeLayer =
+    createOutlineLayer(
+        matrix,
+        outlineLayers
+    );
 
 // Analizar el stroke
 if (strokeLayer) {
@@ -219,20 +254,19 @@ setColorLayers(layers);
         // 6. Assembly Families
         // -------------------------
 
-        const families =
-            createAssemblyFamilies(
-                matrix,
-                layers
-            );
+       const hierarchy =
+    createAssemblyHierarchy(
+        layers
+    );
 
-        console.log(
-            "ASSEMBLY FAMILIES:",
-            families
-        );
+console.log(
+    "ASSEMBLY HIERARCHY:",
+    hierarchy
+);
 
-        setAssemblyFamilies(
-            families
-        );
+setAssemblyHierarchy(
+    hierarchy
+);
 
 
         // -------------------------
@@ -418,46 +452,45 @@ setColorLayers(layers);
 
 
                                 <div className="cloud-stats">
+<div>
+    Pixels: {layer.pixelCount}
+</div>
 
-                                    <div>
-                                        Pixels:{" "}
-                                        {layer.pixelCount}
-                                    </div>
+<div>
+    Subgroups: {layer.subgroupCount}
+</div>
 
+<div>
+    Pixel groups: {layer.pixelSubgroupCount}
+</div>
 
-                                    <div>
-                                        Subgroups:{" "}
-                                        {layer.subgroupCount}
-                                    </div>
+<div>
+    Lines: {layer.lineSubgroupCount}
+</div>
 
+<div>
+    Straight: {layer.straightLineCount}
+</div>
 
-                                    <div>
-                                        Single pixels:{" "}
-                                        {
-                                            layer.singlePixelSubgroupCount
-                                        }
-                                    </div>
+<div>
+    Curves: {layer.curveLineCount}
+</div>
 
+<div>
+    Loops: {layer.loopLineCount}
+</div>
 
-                                    <div>
-                                        Strokes:{" "}
-                                        {
-                                            layer.strokeSubgroupCount
-                                        }
-                                    </div>
+<div>
+    Strokes: {layer.strokeSubgroupCount}
+</div>
 
+<div>
+    Solids: {layer.solidSubgroupCount}
+</div>
 
-                                    <div>
-                                        Border:{" "}
-                                        {
-                                            (
-                                                layer.borderRatio *
-                                                100
-                                            ).toFixed(1)
-                                        }
-                                        %
-                                    </div>
-
+<div>
+    Border: {(layer.borderRatio * 100).toFixed(1)}%
+</div>
                                 </div>
 
                             </div>
@@ -579,64 +612,150 @@ setColorLayers(layers);
                 </h2>
 
 
-                <div className="assembly-families">
+                <section>
 
-                    {assemblyFamilies.map(
-                        (family, index) => {
+    <h2>
+        Assembly Hierarchy
+    </h2>
 
-                            const indexA =
-                                colorLayers.indexOf(
-                                    family.cloudA
-                                );
+    {assemblyHierarchy &&
+        assemblyHierarchy.levels.map(
+            level => (
 
-                            const indexB =
-                                colorLayers.indexOf(
-                                    family.cloudB
-                                );
+                <div
+                    className="assembly-level"
+                    key={level.level}
+                >
 
-                            return (
+                    <h3>
+                        Level {level.level}
+                    </h3>
+
+                    <div>
+                        {level.inputCount}
+                        {" → "}
+                        {level.output.length}
+                    </div>
+
+
+                    <div className="assembly-families">
+
+                        {level.pairs.map(
+                            (
+                                pair,
+                                index
+                            ) => (
 
                                 <div
                                     className="assembly-family"
                                     key={index}
                                 >
 
-                                    <h3>
-                                        Family {index + 1}
-                                    </h3>
-
-
-                                    <div>
-                                        Color {indexA + 1}
+                                    <h4>
+                                        {
+                                            pair.nodeA.id
+                                        }
                                         {" + "}
-                                        Color {indexB + 1}
-                                    </div>
-
+                                        {
+                                            pair.nodeB.id
+                                        }
+                                    </h4>
 
                                     <MatrixCanvas
                                         matrix={
-                                            family.matrix
+                                            pair.result.matrix
                                         }
                                     />
 
-
-                                    <div className="family-stats">
-
-                                        Contact pixels:{" "}
+                                    <div>
+                                        Contact:{" "}
                                         {
-                                            family.contactPixels
+                                            pair.contactPixels
                                         }
+                                    </div>
 
+                                    <div>
+                                        Clouds:{" "}
+                                        {
+                                            pair.result.clouds.length
+                                        }
+                                    </div>
+
+                                    <div>
+                                        Pixels:{" "}
+                                        {
+                                            pair.result.pixelCount
+                                        }
                                     </div>
 
                                 </div>
 
-                            );
+                            )
+                        )}
 
-                        }
-                    )}
+
+                        {level.carry && (
+
+                            <div className="assembly-family">
+
+                                <h4>
+                                    {
+                                        level.carry.id
+                                    }
+                                    {" "}
+                                    (carry)
+                                </h4>
+
+                                <MatrixCanvas
+                                    matrix={
+                                        level.carry.matrix
+                                    }
+                                />
+
+                            </div>
+
+                        )}
+
+                    </div>
 
                 </div>
+
+            )
+        )
+    }
+
+
+    {assemblyHierarchy?.root && (
+
+        <div>
+
+            <h3>
+                Final Assembly
+            </h3>
+
+            <MatrixCanvas
+                matrix={
+                    assemblyHierarchy
+                        .root
+                        .matrix
+                }
+            />
+
+            <div>
+                Clouds:{" "}
+                {
+                    assemblyHierarchy
+                        .root
+                        .clouds
+                        .length
+                }
+            </div>
+
+        </div>
+
+    )}
+
+</section>
   <h2>
                     Tonal families
                 </h2>

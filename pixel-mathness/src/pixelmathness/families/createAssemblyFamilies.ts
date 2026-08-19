@@ -14,14 +14,60 @@ const NEIGHBORS_8 = [
 ] as const;
 
 
-export type AssemblyFamily = {
-    cloudA: ColorLayer;
-    cloudB: ColorLayer;
+// =========================
+// TYPES
+// =========================
+
+export type AssemblyNode = {
+    id: string;
+
+    // Color Clouds originales que contiene
+    clouds: ColorLayer[];
+
+    // Matriz combinada
+    matrix: PixelMatrix;
+
+    // Cantidad total de píxeles reales
+    pixelCount: number;
+};
+
+
+export type AssemblyPair = {
+    nodeA: AssemblyNode;
+    nodeB: AssemblyNode;
 
     contactPixels: number;
 
-    matrix: PixelMatrix;
+    result: AssemblyNode;
 };
+
+
+export type AssemblyLevel = {
+    level: number;
+
+    inputCount: number;
+
+    pairs: AssemblyPair[];
+
+    // Si el número era impar,
+    // este nodo pasa directamente
+    // al siguiente nivel.
+    carry?: AssemblyNode;
+
+    output: AssemblyNode[];
+};
+
+
+export type AssemblyHierarchy = {
+    levels: AssemblyLevel[];
+
+    root: AssemblyNode | null;
+};
+
+
+// =========================
+// HELPERS
+// =========================
 
 function sameColor(
     a: Color,
@@ -35,53 +81,117 @@ function sameColor(
     );
 }
 
-function getOuterOutline(
-    matrix: PixelMatrix,
-    color: Color
+
+function key(
+    x: number,
+    y: number
+): string {
+    return `${x},${y}`;
+}
+
+
+// =========================
+// NODE PIXELS
+// =========================
+
+function getNodePixelSet(
+    node: AssemblyNode
 ): Set<string> {
 
-    const height = matrix.length;
-    const width = matrix[0].length;
+    const result =
+        new Set<string>();
 
-    const outline = new Set<string>();
+    for (
+        let y = 0;
+        y < node.matrix.length;
+        y++
+    ) {
+        for (
+            let x = 0;
+            x < node.matrix[y].length;
+            x++
+        ) {
 
-    function isTarget(
-        x: number,
-        y: number
-    ): boolean {
-        return sameColor(
-            matrix[y][x],
-            color
-        );
+            const pixel =
+                node.matrix[y][x];
+
+            // Blanco = vacío visual
+            const isWhite =
+                pixel.r === 255 &&
+                pixel.g === 255 &&
+                pixel.b === 255 &&
+                pixel.a === 255;
+
+            if (!isWhite) {
+                result.add(
+                    key(x, y)
+                );
+            }
+        }
     }
 
-    for (let y = 0; y < height; y++) {
+    return result;
+}
 
-        for (let x = 0; x < width; x++) {
 
-            if (!isTarget(x, y)) {
+// =========================
+// OUTER OUTLINE
+// =========================
+
+function getOuterOutline(
+    node: AssemblyNode
+): Set<string> {
+
+    const height =
+        node.matrix.length;
+
+    const width =
+        node.matrix[0].length;
+
+    const pixels =
+        getNodePixelSet(node);
+
+    const outline =
+        new Set<string>();
+
+    for (const position of pixels) {
+
+        const [xs, ys] =
+            position.split(",");
+
+        const x = Number(xs);
+        const y = Number(ys);
+
+        for (
+            const [dx, dy]
+            of NEIGHBORS_8
+        ) {
+
+            const nx = x + dx;
+            const ny = y + dy;
+
+            if (
+                nx < 0 ||
+                ny < 0 ||
+                nx >= width ||
+                ny >= height
+            ) {
                 continue;
             }
 
-            for (const [dx, dy] of NEIGHBORS_8) {
+            const neighborKey =
+                key(nx, ny);
 
-                const nx = x + dx;
-                const ny = y + dy;
-
-                if (
-                    nx < 0 ||
-                    ny < 0 ||
-                    nx >= width ||
-                    ny >= height
-                ) {
-                    continue;
-                }
-
-                // El vecino NO pertenece a A.
-                // Por tanto forma parte del outline externo.
-                if (!isTarget(nx, ny)) {
-                    outline.add(`${nx},${ny}`);
-                }
+            // El outline está afuera
+            // del conjunto.
+            if (
+                !pixels.has(
+                    neighborKey
+                )
+            ) {
+                outline.add(
+                    neighborKey
+                );
             }
         }
     }
@@ -89,128 +199,354 @@ function getOuterOutline(
     return outline;
 }
 
+
+// =========================
+// CONTACT
+// =========================
+
 function getContactPixels(
-    matrix: PixelMatrix,
-    colorA: Color,
-    colorB: Color
+    nodeA: AssemblyNode,
+    nodeB: AssemblyNode
 ): number {
 
     const outlineA =
-        getOuterOutline(
-            matrix,
-            colorA
-        );
+        getOuterOutline(nodeA);
 
-    let matches = 0;
+    const pixelsB =
+        getNodePixelSet(nodeB);
 
-    for (const position of outlineA) {
+    let contact = 0;
 
-        const [xString, yString] =
-            position.split(",");
-
-        const x = Number(xString);
-        const y = Number(yString);
-
-        const pixel =
-            matrix[y][x];
+    for (
+        const position
+        of outlineA
+    ) {
 
         if (
-            sameColor(
-                pixel,
-                colorB
-            )
+            pixelsB.has(position)
         ) {
-            matches++;
+            contact++;
         }
     }
 
-    return matches;
+    return contact;
 }
-export function createAssemblyFamilies(
-    matrix: PixelMatrix,
-    layers: ColorLayer[]
-): AssemblyFamily[] {
 
-    const candidates = [...layers];
 
-    const families: AssemblyFamily[] = [];
+// =========================
+// MERGE MATRICES
+// =========================
 
-    while (candidates.length >= 2) {
-
-        const cloudA = candidates[0];
-
-        let bestIndex = 1;
-        let bestContact = -1;
-
-        for (
-            let i = 1;
-            i < candidates.length;
-            i++
-        ) {
-
-            const cloudB = candidates[i];
-
-            const contact =
-                getContactPixels(
-                    matrix,
-                    cloudA.color,
-                    cloudB.color
-                );
-
-            if (contact > bestContact) {
-                bestContact = contact;
-                bestIndex = i;
-            }
-        }
-
-        const cloudB =
-            candidates[bestIndex];
-
-        const pairMatrix =
-            createPairMatrix(
-                matrix,
-                cloudA.color,
-                cloudB.color
-            );
-
-        families.push({
-            cloudA,
-            cloudB,
-            contactPixels: bestContact,
-            matrix: pairMatrix
-        });
-
-        // Quitar B
-        candidates.splice(bestIndex, 1);
-
-        // Quitar A
-        candidates.splice(0, 1);
-    }
-
-    return families;
-}
-function createPairMatrix(
-    matrix: PixelMatrix,
-    colorA: Color,
-    colorB: Color
+function mergeMatrices(
+    matrixA: PixelMatrix,
+    matrixB: PixelMatrix
 ): PixelMatrix {
 
-    return matrix.map(row =>
-        row.map(pixel => {
+    const height =
+        matrixA.length;
 
-            if (
-                sameColor(pixel, colorA) ||
-                sameColor(pixel, colorB)
-            ) {
-                return { ...pixel };
+    const width =
+        matrixA[0].length;
+
+    const result: PixelMatrix =
+        [];
+
+    for (
+        let y = 0;
+        y < height;
+        y++
+    ) {
+
+        const row = [];
+
+        for (
+            let x = 0;
+            x < width;
+            x++
+        ) {
+
+            const a =
+                matrixA[y][x];
+
+            const b =
+                matrixB[y][x];
+
+            const aIsWhite =
+                a.r === 255 &&
+                a.g === 255 &&
+                a.b === 255 &&
+                a.a === 255;
+
+            const bIsWhite =
+                b.r === 255 &&
+                b.g === 255 &&
+                b.b === 255 &&
+                b.a === 255;
+
+
+            if (!aIsWhite) {
+                row.push({
+                    ...a
+                });
             }
+            else if (!bIsWhite) {
+                row.push({
+                    ...b
+                });
+            }
+            else {
+                row.push({
+                    r: 255,
+                    g: 255,
+                    b: 255,
+                    a: 255
+                });
+            }
+        }
 
-            return {
-                r: 255,
-                g: 255,
-                b: 255,
-                a: 255
-            };
+        result.push(row);
+    }
+
+    return result;
+}
+
+
+// =========================
+// INITIAL NODES
+// =========================
+
+function createInitialNodes(
+    layers: ColorLayer[]
+): AssemblyNode[] {
+
+    return layers.map(
+        (layer, index) => ({
+            id: `C${index + 1}`,
+
+            clouds: [
+                layer
+            ],
+
+            matrix:
+                layer.matrix,
+
+            pixelCount:
+                layer.pixelCount
         })
     );
+}
+
+
+// =========================
+// MERGE NODES
+// =========================
+
+function mergeNodes(
+    a: AssemblyNode,
+    b: AssemblyNode,
+    level: number,
+    pairIndex: number
+): AssemblyNode {
+
+    return {
+        id:
+            `L${level}-P${pairIndex}`,
+
+        clouds: [
+            ...a.clouds,
+            ...b.clouds
+        ],
+
+        matrix:
+            mergeMatrices(
+                a.matrix,
+                b.matrix
+            ),
+
+        pixelCount:
+            a.pixelCount +
+            b.pixelCount
+    };
+}
+
+
+// =========================
+// COMPLETE HIERARCHY
+// =========================
+
+export function createAssemblyHierarchy(
+    layers: ColorLayer[]
+): AssemblyHierarchy {
+
+    let candidates =
+        createInitialNodes(
+            layers
+        );
+
+    const levels:
+        AssemblyLevel[] = [];
+
+    let levelIndex = 1;
+
+
+    while (
+        candidates.length > 1
+    ) {
+
+        const available =
+            [...candidates];
+
+        const pairs:
+            AssemblyPair[] = [];
+
+        const output:
+            AssemblyNode[] = [];
+
+        let pairIndex = 1;
+
+
+        // =====================
+        // GREEDY MATCHING
+        // =====================
+
+        while (
+            available.length >= 2
+        ) {
+
+            const nodeA =
+                available[0];
+
+            let bestIndex = 1;
+
+            let bestContact =
+                -1;
+
+
+            for (
+                let i = 1;
+                i < available.length;
+                i++
+            ) {
+
+                const nodeB =
+                    available[i];
+
+                const contact =
+                    getContactPixels(
+                        nodeA,
+                        nodeB
+                    );
+
+
+                if (
+                    contact >
+                    bestContact
+                ) {
+                    bestContact =
+                        contact;
+
+                    bestIndex = i;
+                }
+            }
+
+
+            const nodeB =
+                available[
+                    bestIndex
+                ];
+
+
+            const merged =
+                mergeNodes(
+                    nodeA,
+                    nodeB,
+                    levelIndex,
+                    pairIndex
+                );
+
+
+            pairs.push({
+                nodeA,
+                nodeB,
+
+                contactPixels:
+                    bestContact,
+
+                result:
+                    merged
+            });
+
+
+            output.push(
+                merged
+            );
+
+
+            // eliminar B
+            available.splice(
+                bestIndex,
+                1
+            );
+
+            // eliminar A
+            available.splice(
+                0,
+                1
+            );
+
+            pairIndex++;
+        }
+
+
+        // =====================
+        // IMPAR → CARRY
+        // =====================
+
+        let carry:
+            AssemblyNode |
+            undefined;
+
+
+        if (
+            available.length === 1
+        ) {
+
+            carry =
+                available[0];
+
+            output.push(
+                carry
+            );
+        }
+
+
+        levels.push({
+            level:
+                levelIndex,
+
+            inputCount:
+                candidates.length,
+
+            pairs,
+
+            carry,
+
+            output
+        });
+
+
+        candidates =
+            output;
+
+        levelIndex++;
+    }
+
+
+    return {
+        levels,
+
+        root:
+            candidates[0] ??
+            null
+    };
 }

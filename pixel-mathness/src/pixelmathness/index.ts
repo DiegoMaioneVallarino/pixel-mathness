@@ -47,13 +47,15 @@ export type {
 // =========================
 
 export {
-    createAssemblyFamilies
+    createAssemblyHierarchy
 } from "./families/createAssemblyFamilies";
 
 export type {
-    AssemblyFamily
+    AssemblyNode,
+    AssemblyPair,
+    AssemblyLevel,
+    AssemblyHierarchy
 } from "./families/createAssemblyFamilies";
-
 
 export {
     analyzeStrokeGraph
@@ -95,3 +97,11 @@ export type {
 export {
     faceToMatrix
 } from "./faces/faceToMatrix";
+
+export {
+    isOutlineColor
+} from "./analysis/isOutlineColor";
+
+export {
+    createOutlineLayer
+} from "./analysis/createOutlineLayer";

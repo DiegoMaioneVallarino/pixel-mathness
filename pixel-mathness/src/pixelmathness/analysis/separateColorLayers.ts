@@ -1,31 +1,41 @@
 import type { PixelMatrix } from "../types/PixelMatrix";
 import type { Color } from "../types/Color";
 
+import type {
+    Subgroup
+} from "./subgroups/types";
+
+import {
+    findSubgroups
+} from "./subgroups/findSubgroups";
+
+import {
+    classifySubgroup
+} from "./subgroups/classifySubgroup";
+
 export type ColorLayer = {
     color: Color;
     matrix: PixelMatrix;
 
     pixelCount: number;
+
+    subgroups: Subgroup[];
     subgroupCount: number;
 
-    singlePixelSubgroupCount: number;
+    pixelSubgroupCount: number;
+
+    lineSubgroupCount: number;
+    straightLineCount: number;
+    curveLineCount: number;
+    loopLineCount: number;
+
     strokeSubgroupCount: number;
+    solidSubgroupCount: number;
 
     borderPixelCount: number;
     borderRatio: number;
 };
 
-type Point = {
-    x: number;
-    y: number;
-};
-
-type Subgroup = {
-    pixels: Point[];
-    pixelCount: number;
-    borderPixelCount: number;
-    borderRatio: number;
-};
 
 const NEIGHBORS_8 = [
     [-1, -1],
@@ -54,131 +64,7 @@ function sameColor(
     );
 }
 
-function findSubgroups(
-    matrix: PixelMatrix,
-    targetColor: Color
-): Subgroup[] {
 
-    const height = matrix.length;
-    const width = matrix[0].length;
-
-    const visited = Array.from(
-        { length: height },
-        () => Array(width).fill(false)
-    );
-
-    function isTarget(
-        x: number,
-        y: number
-    ): boolean {
-        return sameColor(
-            matrix[y][x],
-            targetColor
-        );
-    }
-
-    const subgroups: Subgroup[] = [];
-
-    for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-
-            if (visited[y][x]) continue;
-            if (!isTarget(x, y)) continue;
-
-            const queue: Point[] = [
-                { x, y }
-            ];
-
-            const pixels: Point[] = [];
-
-            visited[y][x] = true;
-
-            // Encontrar todos los píxeles
-            // conectados a este subgrupo.
-            while (queue.length > 0) {
-
-                const current = queue.shift()!;
-
-                pixels.push(current);
-
-                for (const [dx, dy] of NEIGHBORS_8) {
-
-                    const nx = current.x + dx;
-                    const ny = current.y + dy;
-
-                    if (
-                        nx < 0 ||
-                        ny < 0 ||
-                        nx >= width ||
-                        ny >= height
-                    ) {
-                        continue;
-                    }
-
-                    if (visited[ny][nx]) continue;
-                    if (!isTarget(nx, ny)) continue;
-
-                    visited[ny][nx] = true;
-
-                    queue.push({
-                        x: nx,
-                        y: ny
-                    });
-                }
-            }
-
-            // Ahora analizamos el borde
-            // de este subgrupo.
-            let borderPixelCount = 0;
-
-            for (const pixel of pixels) {
-
-                let isBorderPixel = false;
-
-                for (const [dx, dy] of NEIGHBORS_8) {
-
-                    const nx = pixel.x + dx;
-                    const ny = pixel.y + dy;
-
-                    // Fuera de la imagen no lo contamos.
-                    if (
-                        nx < 0 ||
-                        ny < 0 ||
-                        nx >= width ||
-                        ny >= height
-                    ) {
-                        continue;
-                    }
-
-                    // Si tiene algún vecino que NO pertenece
-                    // al mismo color, este pixel es borde.
-                    if (!isTarget(nx, ny)) {
-                        isBorderPixel = true;
-                        break;
-                    }
-                }
-
-                if (isBorderPixel) {
-                    borderPixelCount++;
-                }
-            }
-
-            const borderRatio =
-                pixels.length === 0
-                    ? 0
-                    : borderPixelCount / pixels.length;
-
-            subgroups.push({
-                pixels,
-                pixelCount: pixels.length,
-                borderPixelCount,
-                borderRatio
-            });
-        }
-    }
-
-    return subgroups;
-}
 
 function getBorderStats(
     matrix: PixelMatrix,
@@ -312,57 +198,95 @@ export function separateColorLayers(
                 })
             );
 
-        // 3. Encontrar subgrupos reales.
-        const subgroups =
-            findSubgroups(
-                matrix,
-                color
-            );
+        const rawSubgroups =
+    findSubgroups(
+        matrix,
+        color
+    );
 
-        const subgroupCount =
-            subgroups.length;
+const subgroups =
+    rawSubgroups.map(
+        classifySubgroup
+    );
 
-        // Grupos formados por exactamente
-        // un solo pixel.
-        const singlePixelSubgroupCount =
-            subgroups.filter(
-                subgroup =>
-                    subgroup.pixelCount === 1
-            ).length;
+const subgroupCount =
+    subgroups.length;
 
-        // Líneas:
-        // más de un pixel y todos los
-        // pixeles son borde.
-        const strokeSubgroupCount =
-            subgroups.filter(
-                subgroup =>
-                    subgroup.pixelCount > 1 &&
-                    subgroup.borderRatio === 1
-            ).length;
+const pixelSubgroupCount =
+    subgroups.filter(
+        subgroup =>
+            subgroup.kind === "pixel"
+    ).length;
 
+const lineSubgroupCount =
+    subgroups.filter(
+        subgroup =>
+            subgroup.kind === "line"
+    ).length;
+
+const straightLineCount =
+    subgroups.filter(
+        subgroup =>
+            subgroup.kind === "line" &&
+            subgroup.lineKind === "straight"
+    ).length;
+
+const curveLineCount =
+    subgroups.filter(
+        subgroup =>
+            subgroup.kind === "line" &&
+            subgroup.lineKind === "curve"
+    ).length;
+
+const loopLineCount =
+    subgroups.filter(
+        subgroup =>
+            subgroup.kind === "line" &&
+            subgroup.lineKind === "loop"
+    ).length;
+
+const strokeSubgroupCount =
+    subgroups.filter(
+        subgroup =>
+            subgroup.kind === "stroke"
+    ).length;
+
+const solidSubgroupCount =
+    subgroups.filter(
+        subgroup =>
+            subgroup.kind === "solid"
+    ).length;
         const borderStats =
             getBorderStats(
                 matrix,
                 color
             );
 
-        layers.push({
-            color,
-            matrix: layerMatrix,
+      layers.push({
+    color,
+    matrix: layerMatrix,
 
-            pixelCount,
+    pixelCount,
 
-            subgroupCount,
+    subgroups,
+    subgroupCount,
 
-            singlePixelSubgroupCount,
-            strokeSubgroupCount,
+    pixelSubgroupCount,
 
-            borderPixelCount:
-                borderStats.borderPixelCount,
+    lineSubgroupCount,
+    straightLineCount,
+    curveLineCount,
+    loopLineCount,
 
-            borderRatio:
-                borderStats.borderRatio
-        });
+    strokeSubgroupCount,
+    solidSubgroupCount,
+
+    borderPixelCount:
+        borderStats.borderPixelCount,
+
+    borderRatio:
+        borderStats.borderRatio
+});
     }
 
     // 4. Ordenar mayor → menor
