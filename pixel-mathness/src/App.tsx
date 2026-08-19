@@ -140,6 +140,8 @@ if (strokeLayer) {
 const faces =
     detectStrokeFaces(
         strokeLayer
+    ).sort(
+        (a, b) => b.area - a.area
     );
 const views = faces.map(face => {
 
@@ -635,7 +637,9 @@ setColorLayers(layers);
                     )}
 
                 </div>
-
+  <h2>
+                    Tonal families
+                </h2>
             </section>
 
         </div>
