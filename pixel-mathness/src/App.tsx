@@ -1,5 +1,7 @@
 import { useRef, useState } from "react";
+import { TextureLabView } from "./pixelmathness/views/TextureLabView";
 import "./App.css";
+
 
 import type {
     ColorLayer,
@@ -61,7 +63,7 @@ const [strokeGraphMatrix, setStrokeGraphMatrix] =
         null
     );
 
-const [
+    const [
     strokeFacesMatrix,
     setStrokeFacesMatrix
 ] = useState<PixelMatrix | null>(null);
@@ -70,6 +72,10 @@ const [
     const [faceViews, setFaceViews] =
     useState<FaceView[]>([]);
 
+    const [view, setView] =
+    useState<"analyzer" | "textureLab">(
+        "analyzer"
+    );
     // =========================
     // IMAGE LOADING
     // =========================
@@ -355,9 +361,31 @@ setAssemblyHierarchy(
             <h1>
                 PixelMathness
             </h1>
+<div className="app-tabs">
 
+    <button
+        onClick={() =>
+            setView("analyzer")
+        }
+    >
+        Analyzer
+    </button>
 
-            {/* =====================
+    <button
+        onClick={() =>
+            setView("textureLab")
+        }
+    >
+        Texture Lab
+    </button>
+
+</div>
+{view === "textureLab" && (
+    <TextureLabView />
+)}
+{view === "analyzer" && (
+    <>
+        {/* =====================
                 IMAGE INPUT
             ====================== */}
 
@@ -756,15 +784,19 @@ setAssemblyHierarchy(
     )}
 
 </section>
-  <h2>
-                    Tonal families
-                </h2>
-            </section>
+<h2>
+    Tonal families
+</h2>
 
-        </div>
+</section>
 
-    );
+{/* Aquí termina TODO el Analyzer */}
+</>
+)}
 
+{/* Aquí termina .app */}
+</div>
+);
 }
 
 export default App;
