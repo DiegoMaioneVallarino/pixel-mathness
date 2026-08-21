@@ -6,8 +6,7 @@ export function inlineTexture(
     offsetX: number,
     offsetY: number,
     bands: {
-        minDistance: number;
-        maxDistance: number;
+        width: number;
         color: Color;
     }[]
 ): Texture {

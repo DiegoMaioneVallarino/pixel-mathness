@@ -15,8 +15,7 @@ export type Texture =
         offsetY: number;
 
         bands: {
-            minDistance: number;
-            maxDistance: number;
+            width: number;
             color: Color;
         }[];
     };
