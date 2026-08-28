@@ -105,3 +105,46 @@ export {
 export {
     createOutlineLayer
 } from "./analysis/createOutlineLayer";
+
+export {
+    createIlluminationFamilies
+} from "./analysis/illumination/createIlluminationFamilies";
+
+export {
+    getIlluminationDescriptor
+} from "./analysis/illumination/getIlluminationDescriptor";
+
+export {
+    getMaterialSimilarity
+} from "./analysis/illumination/getMaterialSimilarity";
+
+export type {
+    IlluminationFamily,
+    IlluminationMember,
+    NormalizedColor
+} from "./analysis/illumination/types";
+
+export {
+    getCloudGeometry
+} from "./analysis/illumination/getCloudGeometry";
+
+export type {
+    CloudGeometry
+} from "./analysis/illumination/getCloudGeometry";
+
+export {
+    getFaceCloudOverlap
+} from "./analysis/faceComposition/getFaceCloudOverlap";
+
+export {
+    createFaceComposition
+} from "./analysis/faceComposition/createFaceComposition";
+
+export type {
+    FaceComposition,
+    FaceCloudContribution
+} from "./analysis/faceComposition/types";
+
+export {
+    faceCloudIntersectionToMatrix
+} from "./analysis/faceComposition/faceCloudIntersectionToMatrix";

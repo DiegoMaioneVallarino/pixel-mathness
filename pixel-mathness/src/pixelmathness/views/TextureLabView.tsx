@@ -23,6 +23,14 @@ import {
     starWarp
 } from "../../generation/transforms/starWarp";
 
+import {
+    normalizeObjectMatrix
+} from "../../generation/morph/normalizeObjectMatrix";
+
+import {
+    normalizeObjectPair
+} from "../../generation/morph/normalizeObjectPair";
+
 import type {
     PixelMatrix
 } from "../types/PixelMatrix";
@@ -39,6 +47,21 @@ import {
     applyTransform
 } from "../../generation/transforms/applyTransform";
 
+
+import {
+    matrixToMask
+} from "../../generation/morph/matrixToMask";
+
+import {
+    createSignedDistanceField
+} from "../../generation/morph/createSignedDistanceField";
+
+import {
+    morphDistanceFields
+} from "../../generation/morph/morphDistanceFields";
+import {
+    applySilhouetteToTexture
+} from "../../generation/morph/applySilhouetteToTexture";
 export function TextureLabView() {
 
     const [width, setWidth] =
@@ -91,8 +114,129 @@ const [loadedMatrix, setLoadedMatrix] =
     useState<PixelMatrix | null>(null);
 
     
+const [objectA, setObjectA] =
+    useState<PixelMatrix | null>(
+        null
+    );
 
+const [objectB, setObjectB] =
+    useState<PixelMatrix | null>(
+        null
+    );
+
+const [
+    silhouetteMorph,
+    setSilhouetteMorph
+] =
+    useState(0);
     const STAR_STRENGTH = 0.35;
+
+
+const normalizedPair =
+    useMemo(
+        () => {
+
+            if (
+                !objectA ||
+                !objectB
+            ) {
+                return null;
+            }
+
+            return normalizeObjectPair(
+                objectA,
+                objectB,
+                200,
+                200,
+                20
+            );
+
+        },
+        [
+            objectA,
+            objectB
+        ]
+    );
+
+   const sdfA =
+    useMemo(
+        () => {
+
+            if (!normalizedPair) {
+                return null;
+            }
+
+            const mask =
+                matrixToMask(
+                    normalizedPair.objectA
+                );
+
+            return createSignedDistanceField(
+                mask
+            );
+
+        },
+        [
+            normalizedPair
+        ]
+    );
+
+
+const sdfB =
+    useMemo(
+        () => {
+
+            if (!normalizedPair) {
+                return null;
+            }
+
+            const mask =
+                matrixToMask(
+                    normalizedPair.objectB
+                );
+
+            return createSignedDistanceField(
+                mask
+            );
+
+        },
+        [
+            normalizedPair
+        ]
+    );
+
+  const morphedObject =
+    useMemo(
+        () => {
+
+            if (
+                !normalizedPair ||
+                !sdfA ||
+                !sdfB
+            ) {
+                return null;
+            }
+
+            const morphedMask =
+                morphDistanceFields(
+                    sdfA,
+                    sdfB,
+                    silhouetteMorph
+                );
+
+            return applySilhouetteToTexture(
+                normalizedPair.objectA,
+                morphedMask
+            );
+
+        },
+        [
+            normalizedPair,
+            sdfA,
+            sdfB,
+            silhouetteMorph
+        ]
+    );
 
     async function handleTextureImage(
     event: React.ChangeEvent<HTMLInputElement>
@@ -112,6 +256,47 @@ const [loadedMatrix, setLoadedMatrix] =
     setSourceMode("image");
 }
 
+
+
+async function handleObjectA(
+    event: React.ChangeEvent<HTMLInputElement>
+) {
+
+    const file =
+        event.target.files?.[0];
+
+    if (!file) return;
+
+    const image =
+        await loadImage(file);
+
+    const matrix =
+        imageToMatrix(image);
+
+    setObjectA(matrix);
+}
+
+
+async function handleObjectB(
+    event: React.ChangeEvent<HTMLInputElement>
+) {
+
+    const file =
+        event.target.files?.[0];
+
+    if (!file) return;
+
+    const image =
+        await loadImage(file);
+
+    const matrix =
+        imageToMatrix(image);
+
+    setObjectB(matrix);
+}
+
+
+
     const matrix =
     useMemo(
         () => {
@@ -130,8 +315,8 @@ const [loadedMatrix, setLoadedMatrix] =
 
                 const shape =
                     createEllipse(
-                        50,
-                        50,
+                        100,
+                        100,
                         width,
                         height,
                         rotation
@@ -206,8 +391,8 @@ const [loadedMatrix, setLoadedMatrix] =
                     rasterizeShape(
                         shape,
                         texture,
-                        100,
-                        100
+                        200,
+                        200
                     );
             }
 
@@ -603,6 +788,110 @@ const [loadedMatrix, setLoadedMatrix] =
         }
     />
 </div>
+{/* ============================= */}
+{/* SILHOUETTE MORPH              */}
+{/* ============================= */}
+
+<div>
+
+    <h3>
+        Silhouette Morph
+    </h3>
+
+
+    {/* OBJECT A */}
+
+    <div>
+
+        <label>
+            Object A / Texture source
+        </label>
+
+        <br />
+
+        <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            onChange={handleObjectA}
+        />
+
+    </div>
+
+
+    {/* OBJECT B */}
+
+    <div>
+
+        <label>
+            Object B / Target silhouette
+        </label>
+
+        <br />
+
+        <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            onChange={handleObjectB}
+        />
+
+    </div>
+
+
+    {/* MORPH SLIDER */}
+
+    <div
+        style={{
+            marginTop: "20px"
+        }}
+    >
+
+        <label>
+            Silhouette Morph: {
+                silhouetteMorph.toFixed(2)
+            }
+        </label>
+
+        <br />
+
+        <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={silhouetteMorph}
+            onChange={
+                event =>
+                    setSilhouetteMorph(
+                        Number(
+                            event.target.value
+                        )
+                    )
+            }
+        />
+
+    </div>
+
+
+    {/* RESULT */}
+
+    {morphedObject && (
+
+        <div>
+
+            <h3>
+                Morphed Object
+            </h3>
+
+            <MatrixCanvas
+                matrix={morphedObject}
+            />
+
+        </div>
+
+    )}
+
+</div>
+
         </div>
         
     );

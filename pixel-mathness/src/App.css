@@ -193,7 +193,50 @@
     grid-template-columns: repeat(4, 1fr);
     gap: 10px;
 }
+.illumination-families {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
 
+.illumination-family {
+    border: 1px solid #ccc;
+    padding: 12px;
+}
+.face-compositions {
+    display: grid;
+    grid-template-columns:
+        repeat(2, 1fr);
+    gap: 16px;
+}
+
+.face-composition {
+    border: 1px solid #ccc;
+    padding: 12px;
+}
+
+.face-cloud-contributions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.face-cloud-contribution {
+    border: 1px solid #ddd;
+    padding: 8px;
+}
+.illumination-members {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.illumination-member {
+    border: 1px solid #ddd;
+    padding: 8px;
+}
 .face-content {
     border: 1px solid #ccc;
     padding: 10px;

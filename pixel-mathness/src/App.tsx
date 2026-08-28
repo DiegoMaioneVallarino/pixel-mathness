@@ -7,7 +7,9 @@ import type {
     ColorLayer,
     AssemblyHierarchy,
     AnalyzedFace,
-    PixelMatrix
+    PixelMatrix,
+    IlluminationFamily,
+    FaceComposition
 } from "./pixelmathness";
 
 type FaceView = {
@@ -28,7 +30,12 @@ import {
     strokeFacesToMatrix,
     analyzeFaceContents,
     createOutlineLayer,
-    faceToMatrix
+    faceToMatrix,
+    createIlluminationFamilies,
+    getCloudGeometry,
+    createFaceComposition,
+    faceCloudIntersectionToMatrix
+    
 } from "./pixelmathness";
 
 import { MatrixCanvas } from "./components/MatrixCanvas";
@@ -68,6 +75,10 @@ const [strokeGraphMatrix, setStrokeGraphMatrix] =
     setStrokeFacesMatrix
 ] = useState<PixelMatrix | null>(null);
 
+const [
+    illuminationFamilies,
+    setIlluminationFamilies
+] = useState<IlluminationFamily[]>([]);
 
     const [faceViews, setFaceViews] =
     useState<FaceView[]>([]);
@@ -76,6 +87,12 @@ const [strokeGraphMatrix, setStrokeGraphMatrix] =
     useState<"analyzer" | "textureLab">(
         "analyzer"
     );
+
+const [
+    faceCompositions,
+    setFaceCompositions
+] =
+    useState<FaceComposition[]>([]);
     // =========================
     // IMAGE LOADING
     // =========================
@@ -137,7 +154,19 @@ const [strokeGraphMatrix, setStrokeGraphMatrix] =
 
         // Analizar Color Clouds
 const layers = separateColorLayers(matrix);
+const detectedIlluminationFamilies =
+    createIlluminationFamilies(
+        layers
+    );
 
+console.log(
+    "ILLUMINATION FAMILIES:",
+    detectedIlluminationFamilies
+);
+
+setIlluminationFamilies(
+    detectedIlluminationFamilies
+);
 // Buscar la Color Cloud negra
 
 const OUTLINE_THRESHOLD = 40;
@@ -185,6 +214,35 @@ const faces =
         (a, b) => b.area - a.area
     );
 const views = faces.map(face => {
+
+
+const analyzedFaces =
+    faces.map(
+        face =>
+            analyzeFaceContents(
+                face,
+                matrix
+            )
+    );
+
+const compositions =
+    analyzedFaces.map(
+        analyzedFace =>
+            createFaceComposition(
+                analyzedFace,
+                layers
+            )
+    );
+
+setFaceCompositions(
+    compositions
+);
+
+console.log(
+    "FACE COMPOSITIONS:",
+    compositions
+);
+
 
     const analysis =
         analyzeFaceContents(
@@ -623,6 +681,254 @@ setAssemblyHierarchy(
 
                 </div>
 
+            )
+        )}
+
+    </div>
+<section>
+
+    <h2>
+        Illumination Families
+    </h2>
+
+    <div className="illumination-families">
+
+        {illuminationFamilies.map(
+            (family, familyIndex) => (
+
+                <div
+                    className="illumination-family"
+                    key={familyIndex}
+                >
+
+                    <h3>
+                        Family {familyIndex + 1}
+                    </h3>
+
+                    <div>
+                        Members: {
+                            family.members.length
+                        }
+                    </div>
+
+                    <div>
+                        Luminance range:{" "}
+                        {
+                            family.minLuminance
+                                .toFixed(1)
+                        }
+                        {" → "}
+                        {
+                            family.maxLuminance
+                                .toFixed(1)
+                        }
+                    </div>
+
+
+                    <div className="illumination-members">
+
+                        {family.members.map(
+    (
+        member,
+        memberIndex
+    ) => {
+
+        const geometry =
+            getCloudGeometry(
+                member.cloud
+            );
+
+        return (
+            <div
+                className="illumination-member"
+                key={memberIndex}
+            >
+
+                <div>
+                    Level {
+                        memberIndex + 1
+                    }
+                </div>
+
+                <MatrixCanvas
+                    matrix={
+                        member.cloud.matrix
+                    }
+                />
+
+                <div>
+                    rgba(
+                    {member.cloud.color.r},
+                    {member.cloud.color.g},
+                    {member.cloud.color.b},
+                    {member.cloud.color.a})
+                </div>
+
+                <div>
+                    Luminance:{" "}
+                    {
+                        member.luminance
+                            .toFixed(1)
+                    }
+                </div>
+
+                <div>
+                    Area: {
+                        geometry.area
+                    }
+                </div>
+
+                <div>
+                    Centroid: (
+                    {
+                        geometry.centroid.x
+                            .toFixed(1)
+                    },
+                    {" "}
+                    {
+                        geometry.centroid.y
+                            .toFixed(1)
+                    }
+                    )
+                </div>
+
+                <div>
+                    Size:{" "}
+                    {geometry.width}
+                    {" × "}
+                    {geometry.height}
+                </div>
+
+            </div>
+        );
+    }
+)}
+
+                    </div>
+
+                </div>
+
+            )
+        )}
+
+    </div>
+
+</section>
+</section>
+
+<section>
+
+    <h2>
+        Face Compositions
+    </h2>
+
+    <div className="face-compositions">
+
+        {faceCompositions.map(
+            (
+                composition,
+                faceIndex
+            ) => (
+
+                <div
+                    className="face-composition"
+                    key={faceIndex}
+                >
+
+                    <h3>
+                        Face {
+                            faceIndex + 1
+                        }
+                    </h3>
+
+                    <div>
+                        Area: {
+                            composition.faceArea
+                        }
+                    </div>
+
+                    <div>
+                        Covered: {
+                            composition.coveredPixels
+                        }
+                    </div>
+
+                    <div>
+                        Completeness: {
+                            (
+                                composition
+                                    .completeness *
+                                100
+                            ).toFixed(1)
+                        }%
+                    </div>
+
+                    <div className="face-cloud-contributions">
+
+                        {
+                            composition
+                                .contributions
+                                .map(
+                                    (
+                                        contribution,
+                                        cloudIndex
+                                    ) => (
+
+                                        <div
+                                            className="face-cloud-contribution"
+                                            key={cloudIndex}
+                                        >
+
+                                           <MatrixCanvas
+    matrix={
+        faceCloudIntersectionToMatrix(
+            composition.face,
+            contribution.cloud
+        )
+    }
+/>
+
+                                            <div>
+                                                Pixels inside:
+                                                {" "}
+                                                {
+                                                    contribution
+                                                        .pixelsInsideFace
+                                                }
+                                            </div>
+
+                                            <div>
+                                                Face coverage:
+                                                {" "}
+                                                {
+                                                    (
+                                                        contribution
+                                                            .faceCoverage *
+                                                        100
+                                                    ).toFixed(1)
+                                                }%
+                                            </div>
+
+                                            <div>
+                                                Cloud containment:
+                                                {" "}
+                                                {
+                                                    (
+                                                        contribution
+                                                            .cloudContainment *
+                                                        100
+                                                    ).toFixed(1)
+                                                }%
+                                            </div>
+
+                                        </div>
+                                    )
+                                )
+                        }
+
+                    </div>
+
+                </div>
             )
         )}
 
