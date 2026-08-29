@@ -5,8 +5,11 @@ import type {
 import type {
     Cuboid,
     CuboidPixelRole,
-    CuboidRoleMatrix
+    CuboidRasterCommand,
+    CuboidRasterStructure
 } from "./types";
+
+
 import type {
     CuboidPalette
 } from "./cuboidPalette";
@@ -91,6 +94,18 @@ function createBlankMatrix(
     );
 }
 
+function createRasterStructure(
+    width: number,
+    height: number
+): CuboidRasterStructure {
+
+    return {
+        width,
+        height,
+        commands: []
+    };
+}
+
 
 // =====================================================
 // PIXELS
@@ -142,23 +157,36 @@ function setRedPixel(
         a: 255
     };
 }
-function setRolePixel(
-    matrix: CuboidRoleMatrix,
-    x: number,
-    y: number,
+function createCommand(
     role: CuboidPixelRole
+): CuboidRasterCommand {
+
+    return {
+        role,
+        indices: []
+    };
+}
+
+
+function addCommandPixel(
+    structure: CuboidRasterStructure,
+    command: CuboidRasterCommand,
+    x: number,
+    y: number
 ) {
 
     if (
-        y < 0 ||
-        y >= matrix.length ||
         x < 0 ||
-        x >= matrix[0].length
+        x >= structure.width ||
+        y < 0 ||
+        y >= structure.height
     ) {
         return;
     }
 
-    matrix[y][x] = role;
+    command.indices.push(
+        y * structure.width + x
+    );
 }
 function setColorPixel(
     matrix: PixelMatrix,
@@ -639,13 +667,21 @@ function calculateIsoTopFace(
 // =====================================================
 
 function drawIsoEdge(
-    matrix: PixelMatrix,
+    structure: CuboidRasterStructure,
     start: PixelPoint,
     steps: number,
     xDirection: 1 | -1,
     yDirection: 1 | -1,
     hidden = false
 ) {
+
+    const command =
+        createCommand(
+            hidden
+                ? "hidden-edge"
+                : "outline"
+        );
+
 
     let x =
         start.x;
@@ -660,21 +696,16 @@ function drawIsoEdge(
         i++
     ) {
 
-        const drawPixel =
-            hidden
-                ? setRedPixel
-                : setBlackPixel;
-
-
-        drawPixel(
-            matrix,
+        addCommandPixel(
+            structure,
+            command,
             x,
             y
         );
 
-
-        drawPixel(
-            matrix,
+        addCommandPixel(
+            structure,
+            command,
             x + xDirection,
             y
         );
@@ -686,6 +717,11 @@ function drawIsoEdge(
         y +=
             yDirection;
     }
+
+
+    structure.commands.push(
+        command
+    );
 }
 function collectIsoEdgePixels(
     start: PixelPoint,
@@ -725,10 +761,14 @@ function collectIsoEdgePixels(
     return pixels;
 }
 function fillDiscreteTopFace(
-    matrix: PixelMatrix,
+    structure: CuboidRasterStructure,
     geometry: IsoTopFaceGeometry,
-    color: RGBA
+    role: CuboidPixelRole
 ) {
+
+    const command =
+        createCommand(role);
+
 
     const borderPixels = [
 
@@ -801,46 +841,44 @@ function fillDiscreteTopFace(
             Math.max(...xs);
 
 
-        /*
-            Rellenamos exclusivamente
-            entre los extremos reales
-            del borde de ESTA fila.
-
-            Por tanto el color nunca
-            puede salirse de la escalera 2:1.
-        */
-
         for (
             let x = minX;
             x <= maxX;
             x++
         ) {
 
-            blendPixel(
-                matrix,
+            addCommandPixel(
+                structure,
+                command,
                 x,
-                y,
-                color
+                y
             );
         }
     }
+
+
+    structure.commands.push(
+        command
+    );
 }
 // =====================================================
 // VERTICAL
 // =====================================================
 
 function drawVertical(
-    matrix: PixelMatrix,
+    structure: CuboidRasterStructure,
     x: number,
     startY: number,
     height: number,
     hidden = false
 ) {
 
-    const drawPixel =
-        hidden
-            ? setRedPixel
-            : setBlackPixel;
+    const command =
+        createCommand(
+            hidden
+                ? "hidden-edge"
+                : "outline"
+        );
 
 
     for (
@@ -849,21 +887,31 @@ function drawVertical(
         y++
     ) {
 
-        drawPixel(
-            matrix,
+        addCommandPixel(
+            structure,
+            command,
             x,
             y
         );
     }
+
+
+    structure.commands.push(
+        command
+    );
 }
 
 function drawHighlightVertical(
-    matrix: PixelMatrix,
+    structure: CuboidRasterStructure,
     x: number,
     startY: number,
     height: number,
-    color: RGBA
+    role: CuboidPixelRole
 ) {
+
+    const command =
+        createCommand(role);
+
 
     for (
         let y = startY;
@@ -871,23 +919,32 @@ function drawHighlightVertical(
         y++
     ) {
 
-        setColorPixel(
-            matrix,
+        addCommandPixel(
+            structure,
+            command,
             x,
-            y,
-            color
+            y
         );
     }
+
+
+    structure.commands.push(
+        command
+    );
 }
 
 function drawHighlightIsoEdge(
-    matrix: PixelMatrix,
+    structure: CuboidRasterStructure,
     start: PixelPoint,
     steps: number,
     xDirection: 1 | -1,
     yDirection: 1 | -1,
-    color: RGBA
+    role: CuboidPixelRole
 ) {
+
+    const command =
+        createCommand(role);
+
 
     let x =
         start.x;
@@ -902,19 +959,18 @@ function drawHighlightIsoEdge(
         i++
     ) {
 
-        setColorPixel(
-            matrix,
+        addCommandPixel(
+            structure,
+            command,
             x,
-            y,
-            color
+            y
         );
 
-
-        setColorPixel(
-            matrix,
+        addCommandPixel(
+            structure,
+            command,
             x + xDirection,
-            y,
-            color
+            y
         );
 
 
@@ -924,6 +980,11 @@ function drawHighlightIsoEdge(
         y +=
             yDirection;
     }
+
+
+    structure.commands.push(
+        command
+    );
 }
 
 
@@ -1027,10 +1088,14 @@ function pointInsidePolygon(
 
 
 function fillFace(
-    matrix: PixelMatrix,
+    structure: CuboidRasterStructure,
     polygon: PixelPoint[],
-    color: RGBA
+    role: CuboidPixelRole
 ) {
+
+    const command =
+        createCommand(role);
+
 
     const minX =
         Math.floor(
@@ -1096,15 +1161,20 @@ function fillFace(
                 )
             ) {
 
-                blendPixel(
-                    matrix,
+                addCommandPixel(
+                    structure,
+                    command,
                     x,
-                    y,
-                    color
+                    y
                 );
             }
         }
     }
+
+
+    structure.commands.push(
+        command
+    );
 }
 
 
@@ -1113,7 +1183,7 @@ function fillFace(
 // =====================================================
 
 function drawTopVisibleEdges(
-    matrix: PixelMatrix,
+    structure: CuboidRasterStructure,
     geometry: IsoTopFaceGeometry
 ) {
 
@@ -1139,7 +1209,7 @@ function drawTopVisibleEdges(
     // borde exterior negro
 
     drawIsoEdge(
-        matrix,
+        structure,
         geometry.topStart,
         geometry.widthSteps,
         1,
@@ -1151,7 +1221,7 @@ function drawTopVisibleEdges(
     // borde exterior negro
 
     drawIsoEdge(
-        matrix,
+        structure,
         geometry.leftStart,
         geometry.depthSteps,
         1,
@@ -1165,7 +1235,7 @@ function drawTopVisibleEdges(
 // =====================================================
 
 function drawBottomVisibleEdges(
-    matrix: PixelMatrix,
+    matrix: CuboidRasterStructure,
     geometry: IsoTopFaceGeometry,
     height: number
 ) {
@@ -1211,20 +1281,15 @@ function drawBottomVisibleEdges(
 // MAIN
 // =====================================================
 export function drawCuboidWireframe(
-    matrix: PixelMatrix,
-    cuboid: Cuboid,
-    surfaceAlpha = 1,
-    interiorDiagonalAlpha = 0.45,
-    interiorVerticalAlpha = 0.25,
-    palette: CuboidPalette =
-        defaultCuboidPalette
+    structure: CuboidRasterStructure,
+    cuboid: Cuboid
 ): void {
 
     const canvasHeight =
-        matrix.length;
+        structure.height;
 
     const canvasWidth =
-        matrix[0].length;
+        structure.width;
 
  const centerX =
     canvasWidth / 2 +
@@ -1322,7 +1387,7 @@ const centerY =
 // vertical trasera
 
 drawVertical(
-    matrix,
+    structure,
     vertices.top.left.x,
     vertices.top.left.y,
     height,
@@ -1334,7 +1399,7 @@ drawVertical(
 // copia exacta de TOP -> RIGHT
 
 drawIsoEdge(
-    matrix,
+    structure,
 
     offsetPointY(
         vertices.topStart,
@@ -1354,7 +1419,7 @@ drawIsoEdge(
 // copia exacta de LEFT -> TOP
 
 drawIsoEdge(
-    matrix,
+    structure,
 
     offsetPointY(
         vertices.leftStart,
@@ -1372,81 +1437,28 @@ drawIsoEdge(
     // 2. SURFACES
     // =================================================
 
-const alpha =
-    Math.round(
-        Math.max(
-            0,
-            Math.min(
-                1,
-                surfaceAlpha
-            )
-        ) * 255
-    );
 
-const topColor: RGBA = {
-    ...palette.top,
-    a: alpha
-};
 
-const leftColor: RGBA = {
-    ...palette.left,
-    a: alpha
-};
-
-const rightColor: RGBA = {
-    ...palette.right,
-    a: alpha
-};
 fillDiscreteTopFace(
-    matrix,
+    structure,
     vertices,
-    topColor
+    "top"
 );
 
-
 fillFace(
-    matrix,
+    structure,
     leftFace,
-    leftColor
+    "left"
 );
-
 
 fillFace(
-    matrix,
+    structure,
     rightFace,
-    rightColor
+    "right"
 );
 
 
 
-const diagonalLeftColor =
-    lightenColor(
-        averageColor(
-            topColor,
-            leftColor
-        ),
-        interiorDiagonalAlpha
-    );
-
-
-const diagonalRightColor =
-    lightenColor(
-        averageColor(
-            topColor,
-            rightColor
-        ),
-        interiorDiagonalAlpha
-    );
-
-
-const verticalInteriorColor =
-    lightenColor(
-        averageColor(
-            leftColor,
-            rightColor
-        ),
-        interiorVerticalAlpha
-    );
 
 
 // =================================================
@@ -1455,12 +1467,13 @@ const verticalInteriorColor =
 // =================================================
 
 drawHighlightIsoEdge(
-    matrix,
+    structure,
     vertices.rightStart,
     vertices.depthSteps,
     -1,
     1,
-    diagonalRightColor
+    "diagonal-right"
+
 );
 
 
@@ -1470,12 +1483,12 @@ drawHighlightIsoEdge(
 // =================================================
 
 drawHighlightIsoEdge(
-    matrix,
+    structure,
     vertices.bottomStart,
     vertices.widthSteps,
     -1,
     -1,
-    diagonalLeftColor
+    "diagonal-left"
 );
 
 
@@ -1485,7 +1498,7 @@ drawHighlightIsoEdge(
 // =================================================
 
 drawHighlightVertical(
-    matrix,
+    structure,
     vertices.bottom.right.x,
 
     // La vertical empieza 1 px debajo
@@ -1499,7 +1512,7 @@ drawHighlightVertical(
         height - 1
     ),
 
-    verticalInteriorColor
+    "vertical"
 );
 
 
@@ -1514,13 +1527,13 @@ drawHighlightVertical(
 // dos aristas superiores traseras
 
 drawTopVisibleEdges(
-    matrix,
+    structure,
     vertices
 );
 
 
 drawVertical(
-    matrix,
+    structure,
     vertices.left.left.x,
     vertices.left.left.y,
     height
@@ -1528,7 +1541,7 @@ drawVertical(
 
 
 drawVertical(
-    matrix,
+    structure,
     vertices.right.right.x,
     vertices.right.right.y,
     height
@@ -1536,7 +1549,7 @@ drawVertical(
 
 
 drawBottomVisibleEdges(
-    matrix,
+    structure,
     vertices,
     height
 );
@@ -1547,28 +1560,23 @@ drawBottomVisibleEdges(
 export function rasterizeCuboidWireframe(
     cuboid: Cuboid,
     canvasWidth = 200,
-    canvasHeight = 200,
-    surfaceAlpha = 1,
-    interiorDiagonalAlpha = 0.45,
-    interiorVerticalAlpha = 0.25
-): PixelMatrix {
+    canvasHeight = 200
+): CuboidRasterStructure {
 
-    const matrix =
-        createBlankMatrix(
+    const structure =
+        createRasterStructure(
             canvasWidth,
             canvasHeight
         );
 
+
     drawCuboidWireframe(
-        matrix,
-        cuboid,
-        surfaceAlpha,
-        interiorDiagonalAlpha,
-        interiorVerticalAlpha
+        structure,
+        cuboid
     );
 
-    return matrix;
-}
 
+    return structure;
+}
 
 

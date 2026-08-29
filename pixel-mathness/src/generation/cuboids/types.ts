@@ -55,7 +55,6 @@ export type CompositeObject = {
 };
 
 export type CuboidPixelRole =
-    | "background"
     | "top"
     | "left"
     | "right"
@@ -64,6 +63,17 @@ export type CuboidPixelRole =
     | "diagonal-left"
     | "diagonal-right"
     | "vertical";
+
+    export type CuboidRasterCommand = {
+    role: CuboidPixelRole;
+    indices: number[];
+};
+
+export type CuboidRasterStructure = {
+    width: number;
+    height: number;
+    commands: CuboidRasterCommand[];
+};
 
 
 export type CuboidRoleMatrix =

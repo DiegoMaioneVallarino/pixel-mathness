@@ -20,9 +20,24 @@ import {
     shiftPaletteHue
 } from "../../generation/cuboids/cuboidPalette";
 
+import {
+    colorizeCuboidStructure
+} from "../../generation/cuboids/colorizeCuboidStructure";
+
+type LibraryMode =
+    | "primary"
+    | "composite";
+
+
+
 
 export function CuboidLabView() {
-
+const [
+    libraryMode,
+    setLibraryMode
+] = useState<LibraryMode>(
+    "primary"
+);
     const [
         surfaceAlpha,
         setSurfaceAlpha
@@ -76,24 +91,98 @@ const palette = useMemo(
         ),
     [hueShift]
 );
-    const matrix = useMemo(
+const structure = useMemo(
     () =>
         rasterizeCuboidObject(
             primaryObjects,
-            300,
-            300,
-            surfaceAlpha,
-            0.45,
-            0.25,
-            palette
+            250,
+            250
         ),
     [
-        primaryObjects,
-        surfaceAlpha,
-        palette
+        primaryObjects
     ]
 );
 
+
+const matrix = useMemo(
+    () =>
+        colorizeCuboidStructure(
+            structure,
+            palette,
+            surfaceAlpha,
+            0.45,
+            0.25
+        ),
+    [
+        structure,
+        palette,
+        surfaceAlpha
+    ]
+);
+
+function createPrimaryObject() {
+
+    const id =
+        `object-${Date.now()}`;
+
+
+    const newObject: PrimaryObject = {
+
+        id,
+
+        name:
+            `Object ${primaryObjects.length + 1}`,
+
+        cuboid: {
+            x: 0,
+            y: 0,
+            z: 0,
+
+            width: 20,
+            depth: 20,
+            height: 20
+        }
+    };
+
+
+    setPrimaryObjects(
+        previous => [
+            ...previous,
+            newObject
+        ]
+    );
+
+
+    setSelectedPrimaryId(
+        id
+    );
+}
+
+function deleteSelectedPrimary() {
+
+    if (!selectedPrimaryId) {
+        return;
+    }
+
+
+    const remaining =
+        primaryObjects.filter(
+            object =>
+                object.id !==
+                selectedPrimaryId
+        );
+
+
+    setPrimaryObjects(
+        remaining
+    );
+
+
+    setSelectedPrimaryId(
+        remaining[0]?.id ??
+        null
+    );
+}
 
     function updateSelectedCuboid(
         changes:
@@ -136,7 +225,97 @@ const palette = useMemo(
                 Cuboid Lab
             </h2>
 
+<div className="cuboid-library">
 
+    <div className="library-tabs">
+
+        <button
+            onClick={() =>
+                setLibraryMode(
+                    "primary"
+                )
+            }
+        >
+            PRIMARY
+        </button>
+
+        <button
+            onClick={() =>
+                setLibraryMode(
+                    "composite"
+                )
+            }
+        >
+            COMPOSITE
+        </button>
+
+    </div>
+
+
+    {libraryMode === "primary" && (
+
+        <div>
+
+            <button
+                onClick={
+                    createPrimaryObject
+                }
+            >
+                + New Primitive
+            </button>
+
+
+            <div className="primary-list">
+
+                {primaryObjects.map(
+                    object => (
+
+                        <button
+                            key={
+                                object.id
+                            }
+
+                            onClick={() =>
+                                setSelectedPrimaryId(
+                                    object.id
+                                )
+                            }
+                        >
+                            {object.name}
+                        </button>
+
+                    )
+                )}
+
+            </div>
+
+
+            <button
+                onClick={
+                    deleteSelectedPrimary
+                }
+
+                disabled={
+                    !selectedPrimaryId
+                }
+            >
+                Delete
+            </button>
+
+        </div>
+
+    )}
+
+
+    {libraryMode === "composite" && (
+
+        <div>
+            No composites yet
+        </div>
+
+    )}
+
+</div>
             {selectedPrimary && (
 
                 <>
