@@ -4,7 +4,8 @@ import type {
 
 import type {
     CuboidPixelRole,
-    CuboidRasterStructure
+    CuboidRasterStructure,
+    PrimaryObject
 } from "./types";
 
 import type {
@@ -12,7 +13,10 @@ import type {
     RGBColor
 } from "./cuboidPalette";
 
-
+import {
+    defaultCuboidPalette,
+    shiftPaletteHue
+} from "./cuboidPalette";
 type RGBA = {
     r: number;
     g: number;
@@ -299,8 +303,7 @@ function colorForRole(
 
 export function colorizeCuboidStructure(
     structure: CuboidRasterStructure,
-    palette: CuboidPalette,
-    surfaceAlpha = 1,
+    objects: PrimaryObject[],
     interiorDiagonalAlpha = 0.45,
     interiorVerticalAlpha = 0.25
 ): PixelMatrix {
@@ -312,16 +315,54 @@ export function colorizeCuboidStructure(
         );
 
 
+    const appearanceById =
+        new Map(
+            objects.map(
+                object => [
+
+                    object.id,
+
+                    {
+                        alpha:
+                            object
+                                .appearance
+                                .alpha,
+
+                        palette:
+                            shiftPaletteHue(
+                                defaultCuboidPalette,
+                                object
+                                    .appearance
+                                    .hue
+                            )
+                    }
+
+                ]
+            )
+        );
+
+
     for (
         const command
         of structure.commands
     ) {
 
+        const appearance =
+            appearanceById.get(
+                command.objectId
+            );
+
+
+        if (!appearance) {
+            continue;
+        }
+
+
         const color =
             colorForRole(
                 command.role,
-                palette,
-                surfaceAlpha,
+                appearance.palette,
+                appearance.alpha,
                 interiorDiagonalAlpha,
                 interiorVerticalAlpha
             );

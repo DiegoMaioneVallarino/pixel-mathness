@@ -48,20 +48,25 @@ const [
         primaryObjects,
         setPrimaryObjects
     ] = useState<PrimaryObject[]>([
-        {
-            id: "object-1",
-            name: "Object 1",
+       {
+    id: "object-1",
+    name: "Object 1",
 
-            cuboid: {
-                x: 0,
-                y: 0,
-                z: 0,
+    cuboid: {
+        x: 0,
+        y: 0,
+        z: 0,
 
-                width: 40,
-                depth: 30,
-                height: 20
-            }
-        }
+        width: 40,
+        depth: 30,
+        height: 20
+    },
+
+    appearance: {
+        alpha: 1,
+        hue: 0
+    }
+}
     ]);
 
 
@@ -108,15 +113,13 @@ const matrix = useMemo(
     () =>
         colorizeCuboidStructure(
             structure,
-            palette,
-            surfaceAlpha,
+            primaryObjects,
             0.45,
             0.25
         ),
     [
         structure,
-        palette,
-        surfaceAlpha
+        primaryObjects
     ]
 );
 
@@ -127,7 +130,10 @@ function createPrimaryObject() {
 
 
     const newObject: PrimaryObject = {
-
+    appearance: {
+        alpha: 1,
+        hue: 0
+    },
         id,
 
         name:
@@ -158,6 +164,73 @@ function createPrimaryObject() {
     );
 }
 
+function duplicatePrimary(
+    id: string
+) {
+    const source =
+        primaryObjects.find(
+            object =>
+                object.id === id
+        );
+
+    if (!source) {
+        return;
+    }
+
+    const newId =
+        `object-${Date.now()}`;
+
+    const duplicate: PrimaryObject = {
+        ...source,
+
+        id: newId,
+
+        name:
+            `${source.name} copy`,
+
+        cuboid: {
+            ...source.cuboid,
+
+            // pequeño offset para que
+            // no quede exactamente encima
+            x: source.cuboid.x + 4,
+            y: source.cuboid.y + 4
+        },
+
+        appearance: {
+            ...source.appearance
+        }
+    };
+
+
+    setPrimaryObjects(
+        previous => {
+
+            const index =
+                previous.findIndex(
+                    object =>
+                        object.id === id
+                );
+
+            const copy =
+                [...previous];
+
+            copy.splice(
+                index + 1,
+                0,
+                duplicate
+            );
+
+            return copy;
+        }
+    );
+
+
+    setSelectedPrimaryId(
+        newId
+    );
+}
+
 function deleteSelectedPrimary() {
 
     if (!selectedPrimaryId) {
@@ -181,6 +254,73 @@ function deleteSelectedPrimary() {
     setSelectedPrimaryId(
         remaining[0]?.id ??
         null
+    );
+}
+
+function updatePrimaryAppearance(
+    id: string,
+    changes: Partial<
+        PrimaryObject["appearance"]
+    >
+) {
+    setPrimaryObjects(
+        previous =>
+            previous.map(
+                object =>
+                    object.id === id
+                        ? {
+                            ...object,
+                            appearance: {
+                                ...object.appearance,
+                                ...changes
+                            }
+                        }
+                        : object
+            )
+    );
+}
+
+
+function movePrimary(
+    id: string,
+    direction: -1 | 1
+) {
+    setPrimaryObjects(
+        previous => {
+
+            const index =
+                previous.findIndex(
+                    object =>
+                        object.id === id
+                );
+
+            if (index === -1) {
+                return previous;
+            }
+
+            const targetIndex =
+                index + direction;
+
+            if (
+                targetIndex < 0 ||
+                targetIndex >= previous.length
+            ) {
+                return previous;
+            }
+
+            const copy =
+                [...previous];
+
+            [
+                copy[index],
+                copy[targetIndex]
+            ] = [
+                copy[targetIndex],
+                copy[index]
+            ];
+
+            return copy;
+        }
     );
 }
 
@@ -219,61 +359,312 @@ function deleteSelectedPrimary() {
 
     return (
 
-        <div className="cuboid-lab">
+    <div className="cuboid-lab">
 
-            <h2>
-                Cuboid Lab
-            </h2>
-
-<div className="cuboid-library">
-
-    <div className="library-tabs">
-
-        <button
-            onClick={() =>
-                setLibraryMode(
-                    "primary"
-                )
-            }
-        >
-            PRIMARY
-        </button>
-
-        <button
-            onClick={() =>
-                setLibraryMode(
-                    "composite"
-                )
-            }
-        >
-            COMPOSITE
-        </button>
-
-    </div>
+        <h2>
+            Cuboid Lab
+        </h2>
 
 
-    {libraryMode === "primary" && (
+        <div className="cuboid-lab-layout">
 
-        <div>
+            <main className="cuboid-main">
 
-            <button
-                onClick={
-                    createPrimaryObject
-                }
-            >
-                + New Primitive
-            </button>
+                {selectedPrimary && (
+
+                    <>
+
+                        {/* ================================= */}
+                        {/* TUS CONTROLES ACTUALES SE QUEDAN */}
+                        {/* ================================= */}
+
+                        <div>
+                            <label>
+                                Width: {
+                                    selectedPrimary
+                                        .cuboid
+                                        .width
+                                }
+                            </label>
+
+                            <input
+                                type="range"
+                                min="2"
+                                max="120"
+                                step="2"
+                                value={
+                                    selectedPrimary
+                                        .cuboid
+                                        .width
+                                }
+                                onChange={
+                                    event =>
+                                        updateSelectedCuboid({
+                                            width:
+                                                Number(
+                                                    event
+                                                        .target
+                                                        .value
+                                                )
+                                        })
+                                }
+                            />
+                        </div>
 
 
-            <div className="primary-list">
+                        <div>
+                            <label>
+                                Depth: {
+                                    selectedPrimary
+                                        .cuboid
+                                        .depth
+                                }
+                            </label>
 
-                {primaryObjects.map(
-                    object => (
+                            <input
+                                type="range"
+                                min="2"
+                                max="100"
+                                step="2"
+                                value={
+                                    selectedPrimary
+                                        .cuboid
+                                        .depth
+                                }
+                                onChange={
+                                    event =>
+                                        updateSelectedCuboid({
+                                            depth:
+                                                Number(
+                                                    event
+                                                        .target
+                                                        .value
+                                                )
+                                        })
+                                }
+                            />
+                        </div>
+
+
+                        <div>
+                            <label>
+                                Height: {
+                                    selectedPrimary
+                                        .cuboid
+                                        .height
+                                }
+                            </label>
+
+                            <input
+                                type="range"
+                                min="0"
+                                max="60"
+                                step="1"
+                                value={
+                                    selectedPrimary
+                                        .cuboid
+                                        .height
+                                }
+                                onChange={
+                                    event =>
+                                        updateSelectedCuboid({
+                                            height:
+                                                Number(
+                                                    event
+                                                        .target
+                                                        .value
+                                                )
+                                        })
+                                }
+                            />
+                        </div>
+
+
+                        <div>
+                            <label>
+                                X: {
+                                    selectedPrimary
+                                        .cuboid
+                                        .x
+                                }
+                            </label>
+
+                            <input
+                                type="range"
+                                min="-100"
+                                max="100"
+                                step="1"
+                                value={
+                                    selectedPrimary
+                                        .cuboid
+                                        .x
+                                }
+                                onChange={
+                                    event =>
+                                        updateSelectedCuboid({
+                                            x:
+                                                Number(
+                                                    event
+                                                        .target
+                                                        .value
+                                                )
+                                        })
+                                }
+                            />
+                        </div>
+
+
+                        <div>
+                            <label>
+                                Y: {
+                                    selectedPrimary
+                                        .cuboid
+                                        .y
+                                }
+                            </label>
+
+                            <input
+                                type="range"
+                                min="-100"
+                                max="100"
+                                step="1"
+                                value={
+                                    selectedPrimary
+                                        .cuboid
+                                        .y
+                                }
+                                onChange={
+                                    event =>
+                                        updateSelectedCuboid({
+                                            y:
+                                                Number(
+                                                    event
+                                                        .target
+                                                        .value
+                                                )
+                                        })
+                                }
+                            />
+                        </div>
+
+
+                        <div>
+                            <label>
+                                Z: {
+                                    selectedPrimary
+                                        .cuboid
+                                        .z
+                                }
+                            </label>
+
+                            <input
+                                type="range"
+                                min="-100"
+                                max="100"
+                                step="1"
+                                value={
+                                    selectedPrimary
+                                        .cuboid
+                                        .z
+                                }
+                                onChange={
+                                    event =>
+                                        updateSelectedCuboid({
+                                            z:
+                                                Number(
+                                                    event
+                                                        .target
+                                                        .value
+                                                )
+                                        })
+                                }
+                            />
+                        </div>
+
+                    </>
+
+                )}
+
+
+                <h3>
+                    Isometric Cuboid
+                </h3>
+
+                <MatrixCanvas
+                    matrix={matrix}
+                />
+
+            </main>
+
+
+            {/* ================================= */}
+            {/* NUEVA RIGHTBAR                   */}
+            {/* ================================= */}
+
+            <aside className="cuboid-rightbar">
+
+                <div className="rightbar-tabs">
+
+                    <button
+                        onClick={() =>
+                            setLibraryMode(
+                                "primary"
+                            )
+                        }
+                    >
+                        PRIMARY
+                    </button>
+
+                    <button
+                        onClick={() =>
+                            setLibraryMode(
+                                "composite"
+                            )
+                        }
+                    >
+                        COMPOSITE
+                    </button>
+
+                </div>
+
+
+                {libraryMode === "primary" && (
+
+                    <>
 
                         <button
-                            key={
-                                object.id
+                            onClick={
+                                createPrimaryObject
                             }
+                        >
+                            + Primitive
+                        </button>
+
+
+                        <div className="layer-list">
+
+    {[...primaryObjects]
+        .reverse()
+        .map(
+            object => (
+
+                <div
+                    key={object.id}
+
+                    className={
+                        object.id ===
+                        selectedPrimaryId
+                            ? "layer-item selected"
+                            : "layer-item"
+                    }
+                >
+
+                    {/* NOMBRE + ORDEN */}
+
+                    <div className="layer-header">
+
+                        <button
+                            className="layer-name"
 
                             onClick={() =>
                                 setSelectedPrimaryId(
@@ -284,318 +675,161 @@ function deleteSelectedPrimary() {
                             {object.name}
                         </button>
 
-                    )
-                )}
 
-            </div>
+                        <div className="layer-buttons">
 
-
-            <button
-                onClick={
-                    deleteSelectedPrimary
-                }
-
-                disabled={
-                    !selectedPrimaryId
-                }
-            >
-                Delete
-            </button>
-
-        </div>
-
-    )}
+    <button
+        onClick={() =>
+            duplicatePrimary(
+                object.id
+            )
+        }
+        title="Duplicate"
+    >
+        ⧉
+    </button>
 
 
-    {libraryMode === "composite" && (
+    <button
+        onClick={() =>
+            movePrimary(
+                object.id,
+                1
+            )
+        }
+        title="Move up"
+    >
+        ↑
+    </button>
 
-        <div>
-            No composites yet
-        </div>
 
-    )}
+    <button
+        onClick={() =>
+            movePrimary(
+                object.id,
+                -1
+            )
+        }
+        title="Move down"
+    >
+        ↓
+    </button>
 
 </div>
-            {selectedPrimary && (
 
-                <>
-
-                    <div>
-                        <label>
-                            Width: {
-                                selectedPrimary
-                                    .cuboid
-                                    .width
-                            }
-                        </label>
-
-                        <input
-                            type="range"
-                            min="2"
-                            max="120"
-                            step="2"
-
-                            value={
-                                selectedPrimary
-                                    .cuboid
-                                    .width
-                            }
-
-                            onChange={
-                                event =>
-                                    updateSelectedCuboid({
-                                        width:
-                                            Number(
-                                                event
-                                                    .target
-                                                    .value
-                                            )
-                                    })
-                            }
-                        />
                     </div>
 
 
-                    <div>
+                    {/* ALPHA DEL OBJETO */}
+
+                    <div className="layer-control">
+
                         <label>
-                            Depth: {
-                                selectedPrimary
-                                    .cuboid
-                                    .depth
-                            }
-                        </label>
-
-                        <input
-                            type="range"
-                            min="2"
-                            max="100"
-                            step="2"
-
-                            value={
-                                selectedPrimary
-                                    .cuboid
-                                    .depth
-                            }
-
-                            onChange={
-                                event =>
-                                    updateSelectedCuboid({
-                                        depth:
-                                            Number(
-                                                event
-                                                    .target
-                                                    .value
-                                            )
-                                    })
-                            }
-                        />
-                    </div>
-
-
-                    <div>
-                        <label>
-                            Height: {
-                                selectedPrimary
-                                    .cuboid
-                                    .height
+                            Alpha: {
+                                object.appearance.alpha.toFixed(2)
                             }
                         </label>
 
                         <input
                             type="range"
                             min="0"
-                            max="60"
-                            step="1"
+                            max="1"
+                            step="0.05"
 
                             value={
-                                selectedPrimary
-                                    .cuboid
-                                    .height
+                                object.appearance.alpha
                             }
 
                             onChange={
                                 event =>
-                                    updateSelectedCuboid({
-                                        height:
-                                            Number(
-                                                event
-                                                    .target
-                                                    .value
-                                            )
-                                    })
+                                    updatePrimaryAppearance(
+                                        object.id,
+                                        {
+                                            alpha:
+                                                Number(
+                                                    event.target.value
+                                                )
+                                        }
+                                    )
                             }
                         />
+
                     </div>
 
 
-                    <div>
+                    {/* HUE DEL OBJETO */}
+
+                    <div className="layer-control">
+
                         <label>
-                            X: {
-                                selectedPrimary
-                                    .cuboid
-                                    .x
-                            }
+                            Hue: {
+                                object.appearance.hue
+                            }°
                         </label>
 
                         <input
                             type="range"
-                            min="-100"
-                            max="100"
+                            min="0"
+                            max="360"
                             step="1"
 
                             value={
-                                selectedPrimary
-                                    .cuboid
-                                    .x
+                                object.appearance.hue
                             }
 
                             onChange={
                                 event =>
-                                    updateSelectedCuboid({
-                                        x:
-                                            Number(
-                                                event
-                                                    .target
-                                                    .value
-                                            )
-                                    })
+                                    updatePrimaryAppearance(
+                                        object.id,
+                                        {
+                                            hue:
+                                                Number(
+                                                    event.target.value
+                                                )
+                                        }
+                                    )
                             }
                         />
+
                     </div>
 
+                </div>
 
-                    <div>
-                        <label>
-                            Y: {
-                                selectedPrimary
-                                    .cuboid
-                                    .y
-                            }
-                        </label>
-
-                        <input
-                            type="range"
-                            min="-100"
-                            max="100"
-                            step="1"
-
-                            value={
-                                selectedPrimary
-                                    .cuboid
-                                    .y
-                            }
-
-                            onChange={
-                                event =>
-                                    updateSelectedCuboid({
-                                        y:
-                                            Number(
-                                                event
-                                                    .target
-                                                    .value
-                                            )
-                                    })
-                            }
-                        />
-                    </div>
-
-
-                    <div>
-                        <label>
-                            Z: {
-                                selectedPrimary
-                                    .cuboid
-                                    .z
-                            }
-                        </label>
-
-                        <input
-                            type="range"
-                            min="-100"
-                            max="100"
-                            step="1"
-
-                            value={
-                                selectedPrimary
-                                    .cuboid
-                                    .z
-                            }
-
-                            onChange={
-                                event =>
-                                    updateSelectedCuboid({
-                                        z:
-                                            Number(
-                                                event
-                                                    .target
-                                                    .value
-                                            )
-                                    })
-                            }
-                        />
-                    </div>
-
-                </>
-            )}
-
-
-            <div>
-                <label>
-                    Surface Alpha: {
-                        surfaceAlpha.toFixed(2)
-                    }
-                </label>
-
-                <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.05"
-
-                    value={
-                        surfaceAlpha
-                    }
-
-                    onChange={
-                        event =>
-                            setSurfaceAlpha(
-                                Number(
-                                    event
-                                        .target
-                                        .value
-                                )
-                            )
-                    }
-                />
-            </div>
-
-                    <div>
-    <label>
-        Hue: {hueShift}°
-    </label>
-
-    <input
-        type="range"
-        min="0"
-        max="360"
-        step="1"
-        value={hueShift}
-        onChange={event =>
-            setHueShift(
-                Number(event.target.value)
             )
-        }
-    />
+        )}
+
 </div>
-            <h3>
-                Isometric Cuboid
-            </h3>
 
 
-            <MatrixCanvas
-                matrix={matrix}
-            />
+                        <button
+                            onClick={
+                                deleteSelectedPrimary
+                            }
+
+                            disabled={
+                                !selectedPrimaryId
+                            }
+                        >
+                            Delete
+                        </button>
+
+                    </>
+
+                )}
+
+
+                {libraryMode === "composite" && (
+
+                    <div>
+                        No composites yet
+                    </div>
+
+                )}
+
+            </aside>
 
         </div>
-    );
+
+    </div>
+);
 }

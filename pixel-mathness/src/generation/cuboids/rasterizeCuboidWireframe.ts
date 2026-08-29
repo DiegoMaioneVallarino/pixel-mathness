@@ -158,10 +158,12 @@ function setRedPixel(
     };
 }
 function createCommand(
+    objectId: string,
     role: CuboidPixelRole
 ): CuboidRasterCommand {
 
     return {
+        objectId,
         role,
         indices: []
     };
@@ -668,6 +670,7 @@ function calculateIsoTopFace(
 
 function drawIsoEdge(
     structure: CuboidRasterStructure,
+    objectId: string,
     start: PixelPoint,
     steps: number,
     xDirection: 1 | -1,
@@ -677,6 +680,7 @@ function drawIsoEdge(
 
     const command =
         createCommand(
+            objectId,
             hidden
                 ? "hidden-edge"
                 : "outline"
@@ -761,13 +765,16 @@ function collectIsoEdgePixels(
     return pixels;
 }
 function fillDiscreteTopFace(
+        objectId: string,
     structure: CuboidRasterStructure,
     geometry: IsoTopFaceGeometry,
     role: CuboidPixelRole
 ) {
 
     const command =
-        createCommand(role);
+        createCommand(
+            objectId,
+            role);
 
 
     const borderPixels = [
@@ -867,6 +874,7 @@ function fillDiscreteTopFace(
 
 function drawVertical(
     structure: CuboidRasterStructure,
+    objectId: string,
     x: number,
     startY: number,
     height: number,
@@ -875,6 +883,7 @@ function drawVertical(
 
     const command =
         createCommand(
+            objectId,
             hidden
                 ? "hidden-edge"
                 : "outline"
@@ -902,6 +911,7 @@ function drawVertical(
 }
 
 function drawHighlightVertical(
+        objectId: string,
     structure: CuboidRasterStructure,
     x: number,
     startY: number,
@@ -910,7 +920,9 @@ function drawHighlightVertical(
 ) {
 
     const command =
-        createCommand(role);
+        createCommand(
+            objectId,
+            role);
 
 
     for (
@@ -934,6 +946,7 @@ function drawHighlightVertical(
 }
 
 function drawHighlightIsoEdge(
+    objectId: string,
     structure: CuboidRasterStructure,
     start: PixelPoint,
     steps: number,
@@ -943,7 +956,9 @@ function drawHighlightIsoEdge(
 ) {
 
     const command =
-        createCommand(role);
+        createCommand(
+            objectId,
+            role);
 
 
     let x =
@@ -1088,13 +1103,16 @@ function pointInsidePolygon(
 
 
 function fillFace(
+    objectId: string,
     structure: CuboidRasterStructure,
     polygon: PixelPoint[],
     role: CuboidPixelRole
 ) {
 
     const command =
-        createCommand(role);
+        createCommand(
+            objectId,
+            role);
 
 
     const minX =
@@ -1184,44 +1202,22 @@ function fillFace(
 
 function drawTopVisibleEdges(
     structure: CuboidRasterStructure,
+    objectId: string,
     geometry: IsoTopFaceGeometry
 ) {
 
-    /*
-        Solo las dos aristas TRASERAS
-        pertenecen al outline exterior negro.
-
-                    TOP
-                  /     \
-             negro       negro
-                /         \
-             LEFT         RIGHT
-                \         /
-                 \       /
-                  BOTTOM
-
-        Las dos que llegan a BOTTOM
-        se dibujarán después en blanco.
-    */
-
-
-    // TOP -> RIGHT
-    // borde exterior negro
-
     drawIsoEdge(
         structure,
+        objectId,
         geometry.topStart,
         geometry.widthSteps,
         1,
         1
     );
 
-
-    // LEFT -> TOP
-    // borde exterior negro
-
     drawIsoEdge(
         structure,
+        objectId,
         geometry.leftStart,
         geometry.depthSteps,
         1,
@@ -1235,7 +1231,8 @@ function drawTopVisibleEdges(
 // =====================================================
 
 function drawBottomVisibleEdges(
-    matrix: CuboidRasterStructure,
+    structure: CuboidRasterStructure,
+    objectId: string,
     geometry: IsoTopFaceGeometry,
     height: number
 ) {
@@ -1246,7 +1243,6 @@ function drawBottomVisibleEdges(
             height
         );
 
-
     const bottom =
         offsetPairY(
             geometry.bottom,
@@ -1254,10 +1250,9 @@ function drawBottomVisibleEdges(
         );
 
 
-    // RIGHT -> BOTTOM
-
     drawIsoEdge(
-        matrix,
+        structure,
+        objectId,
         right.right,
         geometry.depthSteps,
         -1,
@@ -1265,10 +1260,9 @@ function drawBottomVisibleEdges(
     );
 
 
-    // BOTTOM -> LEFT
-
     drawIsoEdge(
-        matrix,
+        structure,
+        objectId,
         bottom.right,
         geometry.widthSteps,
         -1,
@@ -1282,7 +1276,8 @@ function drawBottomVisibleEdges(
 // =====================================================
 export function drawCuboidWireframe(
     structure: CuboidRasterStructure,
-    cuboid: Cuboid
+    cuboid: Cuboid,
+    objectId: string
 ): void {
 
     const canvasHeight =
@@ -1388,6 +1383,7 @@ const centerY =
 
 drawVertical(
     structure,
+    objectId,
     vertices.top.left.x,
     vertices.top.left.y,
     height,
@@ -1400,7 +1396,7 @@ drawVertical(
 
 drawIsoEdge(
     structure,
-
+    objectId,
     offsetPointY(
         vertices.topStart,
         height
@@ -1420,7 +1416,7 @@ drawIsoEdge(
 
 drawIsoEdge(
     structure,
-
+    objectId,
     offsetPointY(
         vertices.leftStart,
         height
@@ -1440,18 +1436,21 @@ drawIsoEdge(
 
 
 fillDiscreteTopFace(
+    objectId,
     structure,
     vertices,
     "top"
 );
 
 fillFace(
+    objectId,
     structure,
     leftFace,
     "left"
 );
 
 fillFace(
+    objectId,
     structure,
     rightFace,
     "right"
@@ -1467,6 +1466,7 @@ fillFace(
 // =================================================
 
 drawHighlightIsoEdge(
+    objectId,
     structure,
     vertices.rightStart,
     vertices.depthSteps,
@@ -1483,6 +1483,7 @@ drawHighlightIsoEdge(
 // =================================================
 
 drawHighlightIsoEdge(
+    objectId,
     structure,
     vertices.bottomStart,
     vertices.widthSteps,
@@ -1498,6 +1499,7 @@ drawHighlightIsoEdge(
 // =================================================
 
 drawHighlightVertical(
+    objectId,
     structure,
     vertices.bottom.right.x,
 
@@ -1528,12 +1530,14 @@ drawHighlightVertical(
 
 drawTopVisibleEdges(
     structure,
+    objectId,
     vertices
 );
 
 
 drawVertical(
     structure,
+    objectId,
     vertices.left.left.x,
     vertices.left.left.y,
     height
@@ -1542,6 +1546,7 @@ drawVertical(
 
 drawVertical(
     structure,
+    objectId,
     vertices.right.right.x,
     vertices.right.right.y,
     height
@@ -1550,6 +1555,7 @@ drawVertical(
 
 drawBottomVisibleEdges(
     structure,
+    objectId,
     vertices,
     height
 );
@@ -1571,8 +1577,9 @@ export function rasterizeCuboidWireframe(
 
 
     drawCuboidWireframe(
-        structure,
-        cuboid
+         structure,
+    cuboid,
+    "cuboid"
     );
 
 

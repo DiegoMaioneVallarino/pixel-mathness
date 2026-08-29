@@ -23,16 +23,14 @@ export function rasterizeCuboidObject(
     };
 
 
-    for (
-        const object
-        of objects
-    ) {
+  for (const object of objects) {
 
-        drawCuboidWireframe(
-            structure,
-            object.cuboid
-        );
-    }
+    drawCuboidWireframe(
+        structure,
+        object.cuboid,
+        object.id
+    );
+}
 
 
     return structure;

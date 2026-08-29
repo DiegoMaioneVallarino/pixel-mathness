@@ -45,7 +45,13 @@ export type CuboidPart = {
 export type PrimaryObject = {
     id: string;
     name: string;
+
     cuboid: Cuboid;
+
+    appearance: {
+        alpha: number;
+        hue: number;
+    };
 };
 
 export type CompositeObject = {
@@ -64,7 +70,8 @@ export type CuboidPixelRole =
     | "diagonal-right"
     | "vertical";
 
-    export type CuboidRasterCommand = {
+export type CuboidRasterCommand = {
+    objectId: string;
     role: CuboidPixelRole;
     indices: number[];
 };

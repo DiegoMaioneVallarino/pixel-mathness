@@ -214,6 +214,95 @@
     border: 1px solid #ccc;
     padding: 12px;
 }
+.cuboid-lab-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 24px;
+    align-items: start;
+    width: 100%;
+}
+
+
+.cuboid-main {
+    min-width: 0;
+}
+
+
+.cuboid-rightbar {
+    width: 320px;
+
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+
+    padding: 16px;
+
+    border-left: 1px solid #444;
+
+    box-sizing: border-box;
+}
+
+
+.rightbar-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+}
+
+
+.layer-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+
+.layer-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    padding: 10px;
+
+    border: 1px solid #555;
+    border-radius: 6px;
+}
+
+
+.layer-item.selected {
+    border-width: 2px;
+}
+
+
+.layer-header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    align-items: center;
+}
+
+
+.layer-name {
+    text-align: left;
+}
+
+
+.layer-buttons {
+    display: flex;
+    gap: 4px;
+}
+
+
+.layer-control {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+
+.layer-control input[type="range"] {
+    width: 100%;
+}
 
 .face-cloud-contributions {
     display: flex;
