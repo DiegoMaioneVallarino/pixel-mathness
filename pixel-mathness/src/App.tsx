@@ -1,5 +1,9 @@
 import { useRef, useState } from "react";
 import { TextureLabView } from "./pixelmathness/views/TextureLabView";
+import {
+    CuboidLabView
+} from "./pixelmathness/views/CuboidLabView";
+
 import "./App.css";
 
 
@@ -34,7 +38,8 @@ import {
     createIlluminationFamilies,
     getCloudGeometry,
     createFaceComposition,
-    faceCloudIntersectionToMatrix
+    faceCloudIntersectionToMatrix,
+    
     
 } from "./pixelmathness";
 
@@ -83,16 +88,21 @@ const [
     const [faceViews, setFaceViews] =
     useState<FaceView[]>([]);
 
-    const [view, setView] =
-    useState<"analyzer" | "textureLab">(
-        "analyzer"
-    );
+const [view, setView] =
+    useState<
+        "analyzer" |
+        "texture" |
+        "cuboid"
+    >("analyzer");
 
 const [
     faceCompositions,
     setFaceCompositions
 ] =
     useState<FaceComposition[]>([]);
+
+
+
     // =========================
     // IMAGE LOADING
     // =========================
@@ -431,16 +441,29 @@ setAssemblyHierarchy(
 
     <button
         onClick={() =>
-            setView("textureLab")
+            setView("texture")
         }
     >
         Texture Lab
     </button>
 
+    <button
+    onClick={() =>
+        setView("cuboid")
+    }
+>
+    Cuboid Lab
+</button>
+
 </div>
-{view === "textureLab" && (
+{view === "texture" && (
     <TextureLabView />
 )}
+
+{view === "cuboid" && (
+    <CuboidLabView />
+)}
+
 {view === "analyzer" && (
     <>
         {/* =====================
