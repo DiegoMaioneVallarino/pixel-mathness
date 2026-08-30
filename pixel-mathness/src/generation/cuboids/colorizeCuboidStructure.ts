@@ -17,6 +17,12 @@ import {
     defaultCuboidPalette,
     shiftPaletteHue
 } from "./cuboidPalette";
+
+import type {
+    LightImpact
+} from "../lighting/types";
+
+
 type RGBA = {
     r: number;
     g: number;
@@ -81,7 +87,6 @@ function lightenColor(
             )
         );
 
-
     return {
         r: Math.round(
             base.r +
@@ -117,10 +122,8 @@ function blendPixel(
         return;
     }
 
-
     const destination =
         matrix[y][x];
-
 
     const srcAlpha =
         source.a / 255;
@@ -128,17 +131,14 @@ function blendPixel(
     const dstAlpha =
         destination.a / 255;
 
-
     const outAlpha =
         srcAlpha +
         dstAlpha *
         (1 - srcAlpha);
 
-
     if (outAlpha === 0) {
         return;
     }
-
 
     matrix[y][x] = {
 
@@ -301,9 +301,89 @@ function colorForRole(
 }
 
 
+function applyLight(
+    color: RGBA,
+    intensity: number
+): RGBA {
+
+    const light =
+        Math.max(
+            0,
+            Math.min(
+                1,
+                intensity
+            )
+        );
+
+    const strength =
+        light * 0.6;
+
+    return {
+        r: Math.round(
+            color.r +
+            (255 - color.r) *
+            strength
+        ),
+
+        g: Math.round(
+            color.g +
+            (255 - color.g) *
+            strength
+        ),
+
+        b: Math.round(
+            color.b +
+            (255 - color.b) *
+            strength
+        ),
+
+        a: color.a
+    };
+}
+
+
+function getLightForRenderRole(
+    objectId: string,
+    role: CuboidPixelRole,
+    lightByFace: Map<string, number>
+): number {
+
+    if (role === "top") {
+        return (
+            lightByFace.get(
+                `${objectId}:top`
+            ) ?? 0
+        );
+    }
+
+    // Cara izquierda visible del isométrico
+    // corresponde a +Y = "front"
+    if (role === "left") {
+        return (
+            lightByFace.get(
+                `${objectId}:front`
+            ) ?? 0
+        );
+    }
+
+    // Cara derecha visible del isométrico
+    // corresponde a +X = "right"
+    if (role === "right") {
+        return (
+            lightByFace.get(
+                `${objectId}:right`
+            ) ?? 0
+        );
+    }
+
+    return 0;
+}
+
+
 export function colorizeCuboidStructure(
     structure: CuboidRasterStructure,
     objects: PrimaryObject[],
+    lightImpacts: LightImpact[] = [],
     interiorDiagonalAlpha = 0.45,
     interiorVerticalAlpha = 0.25
 ): PixelMatrix {
@@ -342,6 +422,22 @@ export function colorizeCuboidStructure(
         );
 
 
+    const lightByFace =
+        new Map<string, number>();
+
+
+    for (
+        const impact
+        of lightImpacts
+    ) {
+
+        lightByFace.set(
+            `${impact.objectId}:${impact.face}`,
+            impact.intensity
+        );
+    }
+
+
     for (
         const command
         of structure.commands
@@ -358,7 +454,7 @@ export function colorizeCuboidStructure(
         }
 
 
-        const color =
+        let color: RGBA =
             colorForRole(
                 command.role,
                 appearance.palette,
@@ -366,6 +462,24 @@ export function colorizeCuboidStructure(
                 interiorDiagonalAlpha,
                 interiorVerticalAlpha
             );
+
+
+        const light =
+            getLightForRenderRole(
+                command.objectId,
+                command.role,
+                lightByFace
+            );
+
+
+        if (light > 0) {
+
+            color =
+                applyLight(
+                    color,
+                    light
+                );
+        }
 
 
         for (

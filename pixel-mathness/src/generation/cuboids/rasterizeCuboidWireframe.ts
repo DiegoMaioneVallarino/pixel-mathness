@@ -1286,14 +1286,24 @@ export function drawCuboidWireframe(
     const canvasWidth =
         structure.width;
 
- const centerX =
-    canvasWidth / 2 +
-    cuboid.x;
+const centerX =
+    canvasWidth / 2
+    +
+    cuboid.x * 2
+    -
+    cuboid.y * 2;
 
 const centerY =
-    canvasHeight / 2 +
-    cuboid.y -
-    cuboid.z;
+    canvasHeight / 2
+    +
+    cuboid.x
+    +
+    cuboid.y
+    -
+    (
+        cuboid.z +
+        cuboid.height
+    );
 
     const height =
         Math.max(
