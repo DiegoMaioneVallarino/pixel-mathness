@@ -4,6 +4,9 @@ import {
     CuboidLabView
 } from "./pixelmathness/views/CuboidLabView";
 
+import {
+    VectorLabView
+} from "./pixelmathness/views/VectorLabView";
 import "./App.css";
 
 
@@ -92,7 +95,8 @@ const [view, setView] =
     useState<
         "analyzer" |
         "texture" |
-        "cuboid"
+        "cuboid" |
+        "vector"
     >("analyzer");
 
 const [
@@ -438,7 +442,13 @@ setAssemblyHierarchy(
     >
         Analyzer
     </button>
-
+        <button
+    onClick={() =>
+        setView("vector")
+    }
+>
+    Vector Lab
+</button>
     <button
         onClick={() =>
             setView("texture")
@@ -462,6 +472,10 @@ setAssemblyHierarchy(
 
 {view === "cuboid" && (
     <CuboidLabView />
+)}
+
+{view === "vector" && (
+    <VectorLabView />
 )}
 
 {view === "analyzer" && (

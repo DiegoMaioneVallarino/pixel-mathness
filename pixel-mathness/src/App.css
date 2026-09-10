@@ -389,6 +389,114 @@
 
     gap: 5px;
 }
+.vector-lab {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr) 280px;
+    width: 100%;
+    height: calc(100vh - 80px);
+    overflow: hidden;
+}
+
+
+.vector-lab-leftbar,
+.vector-lab-rightbar {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 16px;
+    background: #f7f7f7;
+    box-sizing: border-box;
+}
+
+
+.vector-lab-leftbar {
+    border-right: 1px solid #aaa;
+}
+
+
+.vector-lab-rightbar {
+    border-left: 1px solid #aaa;
+}
+
+
+.vector-lab-main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+}
+
+
+.vector-lab-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-bottom: 1px solid #aaa;
+    background: white;
+}
+
+
+.vector-canvas-wrapper {
+    flex: 1;
+    overflow: auto;
+    background: #d9d9d9;
+    padding: 40px;
+}
+
+
+.vector-grid {
+    position: relative;
+
+    width: 1200px;
+    height: 1200px;
+
+    background-color: white;
+
+    background-image:
+        linear-gradient(
+            to right,
+            #d8d8d8 1px,
+            transparent 1px
+        ),
+        linear-gradient(
+            to bottom,
+            #d8d8d8 1px,
+            transparent 1px
+        );
+
+    image-rendering: pixelated;
+}
+
+
+.vector-origin {
+    position: absolute;
+    left: 0;
+    top: 0;
+
+    font-size: 10px;
+    padding: 3px 5px;
+
+    background: black;
+    color: white;
+
+    pointer-events: none;
+}
+
+
+.vector-tool {
+    width: 100%;
+    padding: 8px;
+    text-align: center;
+}
+
+
+.vector-tool.selected {
+    font-weight: bold;
+    outline: 2px solid black;
+}
+
+
 
 
 .orthographic-mini-canvas {
@@ -440,3 +548,273 @@
   }
 }
 
+.vector-lab {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr) 280px;
+    width: 100%;
+    height: calc(100vh - 80px);
+    overflow: hidden;
+}
+
+.vector-lab-leftbar,
+
+
+.vector-lab-leftbar {
+    border-right: 1px solid #aaa;
+}
+
+.vector-lab-rightbar {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    padding: 10px 12px;
+
+    background: #f7f7f7;
+
+    border-left: 1px solid #aaa;
+
+    box-sizing: border-box;
+
+    overflow: visible;
+}
+
+.vector-property {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.vector-lab-main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+}
+
+.vector-lab-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 14px;
+    border-bottom: 1px solid #aaa;
+    background: white;
+    flex-wrap: wrap;
+}
+
+.vector-canvas-wrapper {
+    flex: 1;
+    overflow: auto;
+    background: #d9d9d9;
+    padding: 40px;
+}
+
+.vector-grid {
+    position: relative;
+    background-color: white;
+    background-image:
+        linear-gradient(
+            to right,
+            #d8d8d8 1px,
+            transparent 1px
+        ),
+        linear-gradient(
+            to bottom,
+            #d8d8d8 1px,
+            transparent 1px
+        );
+    image-rendering: pixelated;
+    cursor: crosshair;
+}
+
+.vector-origin {
+    position: absolute;
+    left: 0;
+    top: 0;
+    font-size: 10px;
+    padding: 3px 5px;
+    background: black;
+    color: white;
+    pointer-events: none;
+    z-index: 5;
+}
+
+.vector-layer {
+    position: absolute;
+    inset: 0;
+}
+
+.vector-pixel {
+    position: absolute;
+    box-sizing: border-box;
+}
+
+.vector-control-point {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: #ff0066;
+    border: 2px solid white;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 6;
+}
+
+.vector-tool {
+    width: 100%;
+    padding: 8px;
+    text-align: left;
+}
+
+.vector-tool.selected {
+    font-weight: bold;
+    outline: 2px solid black;
+}
+
+
+.vector-shape-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.vector-shape-item {
+    text-align: left;
+    padding: 8px;
+}
+
+.vector-shape-item.selected {
+    outline: 2px solid black;
+    font-weight: bold;
+}
+
+.vector-selected-data {
+    display: grid;
+
+    grid-template-columns:
+        repeat(
+            2,
+            minmax(0, 1fr)
+        );
+
+    gap: 8px 10px;
+
+    align-items: end;
+}
+
+.vector-draft-info {
+    font-size: 13px;
+}
+
+.vector-tool-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+.range-number-control {
+    display: grid;
+
+    grid-template-columns:
+        minmax(0, 1fr)
+        58px;
+
+    gap: 6px;
+
+    align-items: center;
+}
+
+
+.range-number-control input[type="range"] {
+    width: 100%;
+    min-width: 0;
+}
+
+
+.range-number-control input[type="number"] {
+    width: 58px;
+    box-sizing: border-box;
+}
+
+
+.butterfly-properties {
+    display: grid;
+    grid-template-columns:
+        repeat(
+            2,
+            minmax(0, 1fr)
+        );
+
+    gap: 6px 8px;
+}
+.vector-default-properties {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+}
+
+.butterfly-properties .compact-full {
+    grid-column: auto;
+}
+
+.vector-coordinate {
+    display: flex;
+    justify-content: space-between;
+    gap: 6px;
+
+    padding: 4px 6px;
+
+    border: 1px solid #ddd;
+}
+
+.vector-shape-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 6px;
+    align-items: center;
+}
+
+
+.vector-group-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+
+.vector-group-item {
+    width: 100%;
+    padding: 7px;
+    text-align: left;
+}
+
+
+.vector-group-item.selected {
+    outline: 2px solid black;
+    font-weight: bold;
+}
+
+.butterfly-transform-property {
+    grid-column: 1 / -1;
+}
+
+
+.vector-generator-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+
+.vector-generator-item {
+    width: 100%;
+    padding: 7px;
+    text-align: left;
+}
+
+
+.vector-generator-item.selected {
+    outline: 2px solid black;
+    font-weight: bold;
+}
