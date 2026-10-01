@@ -27,7 +27,8 @@ export type VectorShape =
     | LineShape
     | EllipseShape
     | RectangleShape
-    | ButterflyShape;
+    | ButterflyShape
+    | BranchShape;
 
  export type LineShape = {
     id: string;
@@ -195,4 +196,30 @@ export type SpawnInstance = {
     rotation: number;
 
     scale: number;
+};
+
+export type BranchPoint = {
+    position: Point2D;
+
+    controlIn: Point2D;
+
+    controlOut: Point2D;
+};
+
+
+export type BranchShape = {
+    id: string;
+    name: string;
+    kind: "branch";
+
+    points: BranchPoint[];
+    thickness: number;
+    
+    borderWidth: number;
+
+    fillColor: string;
+    strokeColor: string;
+
+    fillEnabled: boolean;
+    strokeEnabled: boolean;
 };

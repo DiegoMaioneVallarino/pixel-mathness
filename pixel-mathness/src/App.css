@@ -818,3 +818,131 @@
     outline: 2px solid black;
     font-weight: bold;
 }
+
+.branch-editor-layer {
+    pointer-events: none;
+}
+
+
+.branch-anchor,
+.branch-handle {
+    position: absolute;
+
+    transform: translate(
+        -50%,
+        -50%
+    );
+
+    box-sizing: border-box;
+
+    pointer-events: auto;
+
+    z-index: 30;
+}
+
+
+.branch-anchor {
+    width: 14px;
+    height: 14px;
+
+    background: #ffffff;
+
+    border: 3px solid #111111;
+
+    border-radius: 50%;
+
+    cursor: grab;
+}
+
+
+.branch-handle {
+    width: 10px;
+    height: 10px;
+
+    background: #111111;
+
+    border: 2px solid #ffffff;
+
+    border-radius: 50%;
+
+    cursor: grab;
+}
+
+
+.branch-anchor:active,
+.branch-handle:active {
+    cursor: grabbing;
+}
+
+
+.branch-handle-line {
+    position: absolute;
+
+    height: 2px;
+
+    background:
+        rgba(
+            0,
+            0,
+            0,
+            0.65
+        );
+
+    transform-origin:
+        0 50%;
+
+    pointer-events: none;
+
+    z-index: 29;
+}
+
+
+.vector-lab-rightbar {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    padding: 10px 12px;
+
+    background: #f7f7f7;
+
+    border-left: 1px solid #aaa;
+
+    box-sizing: border-box;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    min-height: 0;
+}
+
+.branch-draft-status {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    padding: 5px 8px;
+
+    border: 1px solid #bbb;
+    border-radius: 6px;
+
+    background: #f5f5f5;
+}
+
+
+.branch-draft-actions {
+    display: flex;
+    gap: 5px;
+}
+
+
+.branch-draft-actions button {
+    padding: 4px 8px;
+    cursor: pointer;
+}
+
+
+.branch-draft-actions button:disabled {
+    opacity: 0.4;
+    cursor: default;
+}

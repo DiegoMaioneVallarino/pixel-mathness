@@ -1,6 +1,7 @@
 import {
     useEffect,
     useMemo,
+    useRef,
     useState
 } from "react";
 
@@ -48,20 +49,41 @@ import {
     fillPolygon
 } from "../../generation/vectorLab/fillPolygon";
 
+import {
+    flattenCubicBezier
+} from "../../generation/vectorLab/flattenCubicBezier";
+
+import {
+    rasterizeThickPath
+} from "../../generation/vectorLab/rasterizeThickPath";
+
+
+
 type VectorTool =
     | "select"
     | "line"
     | "bezier"
     | "ellipse"
     | "rectangle"
-    | "butterfly";
+    | "butterfly"
+    | "branch";
 
+
+    type BranchDragTarget = {
+    pointIndex: number;
+
+    kind:
+        | "position"
+        | "controlIn"
+        | "controlOut";
+};
 
 const GRID_WIDTH = 256;
 const GRID_HEIGHT = 256;
 
 
 export  function VectorLabView() {
+
 
     const [
         selectedTool,
@@ -143,12 +165,152 @@ const selectedGenerator =
     ] = useState<Point2D[]>([]);
 
 
-    useEffect(
-        () => {
-            setDraftPoints([]);
-        },
-        [selectedTool]
+   useEffect(
+    () => {
+
+        setDraftPoints([]);
+
+        setBranchDraftPoints([]);
+
+    },
+    [selectedTool]
+);
+
+const [
+    branchDraftPoints,
+    setBranchDraftPoints
+] = useState<Point2D[]>([]);
+
+
+const [
+    branchDragTarget,
+    setBranchDragTarget
+] = useState<BranchDragTarget | null>(
+    null
+);
+
+useEffect(
+    () => {
+
+        if (!branchDragTarget) {
+            return;
+        }
+
+
+        /*
+            Guardamos una referencia no-null.
+
+            TypeScript ya sabe que dragTarget
+            existe durante todo este effect.
+        */
+        const dragTarget =
+            branchDragTarget;
+
+
+        function handleMouseMove(
+            event: MouseEvent
+        ) {
+
+            const grid =
+                gridRef.current;
+
+
+            if (!grid) {
+                return;
+            }
+
+
+            const rect =
+                grid.getBoundingClientRect();
+
+
+            const x =
+                clamp(
+                    Math.round(
+                        (
+                            event.clientX -
+                            rect.left
+                        )
+                        /
+                        zoom
+                    ),
+                    0,
+                    GRID_WIDTH - 1
+                );
+
+
+            const y =
+                clamp(
+                    Math.round(
+                        (
+                            event.clientY -
+                            rect.top
+                        )
+                        /
+                        zoom
+                    ),
+                    0,
+                    GRID_HEIGHT - 1
+                );
+
+
+            updateBranchPoint(
+                dragTarget.pointIndex,
+                dragTarget.kind,
+                {
+                    x,
+                    y
+                }
+            );
+        }
+
+
+        function handleMouseUp() {
+
+            setBranchDragTarget(
+                null
+            );
+        }
+
+
+        window.addEventListener(
+            "mousemove",
+            handleMouseMove
+        );
+
+
+        window.addEventListener(
+            "mouseup",
+            handleMouseUp
+        );
+
+
+        return () => {
+
+            window.removeEventListener(
+                "mousemove",
+                handleMouseMove
+            );
+
+
+            window.removeEventListener(
+                "mouseup",
+                handleMouseUp
+            );
+        };
+
+    },
+    [
+        branchDragTarget,
+        zoom,
+        selectedShapeId
+    ]
+);
+const gridRef =
+    useRef<HTMLDivElement | null>(
+        null
     );
+
 
 
     const selectedShape =
@@ -222,6 +384,29 @@ const selectedGenerator =
         return { x, y };
     }
 
+
+function updateSelectedGenerator(
+    changes: Partial<SpawnGenerator>
+) {
+    if (!selectedGeneratorId) {
+        return;
+    }
+
+    setSpawnGenerators(
+        previous =>
+            previous.map(
+                generator =>
+                    generator.id === selectedGeneratorId
+                        ? {
+                            ...generator,
+                            ...changes
+                        } as SpawnGenerator
+                        : generator
+            )
+    );
+}
+
+
     function createStarSpawnFromSelectedShape() {
 
     if (!selectedShape) {
@@ -294,7 +479,20 @@ const selectedGenerator =
 
         const point =
             getGridPoint(event);
+if (
+    selectedTool ===
+    "branch"
+) {
 
+    setBranchDraftPoints(
+        previous => [
+            ...previous,
+            point
+        ]
+    );
+
+    return;
+}
         if (selectedTool === "select") {
             setDraftPoints([]);
             return;
@@ -738,8 +936,9 @@ function getShapeCenter(
     shape: VectorShape
 ): Point2D {
 
-    if (shape.kind === "ellipse") {
-
+    if (
+        shape.kind === "ellipse"
+    ) {
         return {
             x: shape.center.x,
             y: shape.center.y
@@ -751,7 +950,6 @@ function getShapeCenter(
         shape.kind === "line" ||
         shape.kind === "rectangle"
     ) {
-
         return {
             x:
                 (
@@ -772,7 +970,6 @@ function getShapeCenter(
         shape.kind ===
         "quadratic-bezier"
     ) {
-
         return {
             x:
                 (
@@ -787,6 +984,51 @@ function getShapeCenter(
                     shape.control.y +
                     shape.end.y
                 ) / 3
+        };
+    }
+
+
+    if (
+        shape.kind ===
+        "branch"
+    ) {
+
+        if (
+            shape.points.length === 0
+        ) {
+            return {
+                x: 0,
+                y: 0
+            };
+        }
+
+
+        const sum =
+            shape.points.reduce(
+                (accumulator, point) => ({
+                    x:
+                        accumulator.x +
+                        point.position.x,
+
+                    y:
+                        accumulator.y +
+                        point.position.y
+                }),
+                {
+                    x: 0,
+                    y: 0
+                }
+            );
+
+
+        return {
+            x:
+                sum.x /
+                shape.points.length,
+
+            y:
+                sum.y /
+                shape.points.length
         };
     }
 
@@ -872,6 +1114,148 @@ function getGroupForShape(
         null
     );
 }
+function buildBranchPoints(
+    rawPoints: Point2D[]
+) {
+    return rawPoints.map(
+        (
+            point,
+            index
+        ) => {
+
+            const previous =
+                rawPoints[
+                    Math.max(
+                        0,
+                        index - 1
+                    )
+                ];
+
+            const next =
+                rawPoints[
+                    Math.min(
+                        rawPoints.length - 1,
+                        index + 1
+                    )
+                ];
+
+
+            const tangentX =
+                (
+                    next.x -
+                    previous.x
+                )
+                /
+                4;
+
+
+            const tangentY =
+                (
+                    next.y -
+                    previous.y
+                )
+                /
+                4;
+
+
+            return {
+                position:
+                    point,
+
+                controlIn: {
+                    x:
+                        point.x -
+                        tangentX,
+
+                    y:
+                        point.y -
+                        tangentY
+                },
+
+                controlOut: {
+                    x:
+                        point.x +
+                        tangentX,
+
+                    y:
+                        point.y +
+                        tangentY
+                }
+            };
+        }
+    );
+}
+function finishBranch() {
+
+    if (
+        branchDraftPoints.length < 2
+    ) {
+        return;
+    }
+
+
+   const points =
+    buildBranchPoints(
+        branchDraftPoints
+    );
+
+
+    const newShape: VectorShape = {
+
+        id:
+            crypto.randomUUID(),
+
+        name:
+            `Branch ${shapes.length + 1}`,
+
+        kind:
+            "branch",
+
+        points,
+
+               
+                thickness:
+                    5,
+
+                borderWidth:
+                    1,
+
+        fillColor:
+            selectedColor,
+
+        strokeColor,
+
+        fillEnabled:
+            true,
+
+        strokeEnabled:
+            true
+    };
+
+
+    setShapes(
+        previous => [
+            ...previous,
+            newShape
+        ]
+    );
+
+
+    setSelectedShapeId(
+    newShape.id
+);
+
+setSelectedGroupId(
+    null
+);
+
+setSelectedGeneratorId(
+    null
+);
+
+setBranchDraftPoints([]);
+}
+
 
 function applyGroupTransform(
     point: Point2D,
@@ -989,9 +1373,80 @@ function renderQuantizedAlphaPixels(
     );
 }
     function renderShapePixels(
-        shape: VectorShape
-    ) {
+    shape: VectorShape,
+    spawnInstance?: SpawnInstance
+) {
+const sourceCenter =
+    applyGroupTransform(
+        getShapeCenter(shape),
+        shape.id
+    );
 
+
+function applyFinalTransform(
+    point: Point2D
+): Point2D {
+
+    /*
+        Primero:
+        transformación normal del grupo.
+    */
+
+    const groupedPoint =
+        applyGroupTransform(
+            point,
+            shape.id
+        );
+
+
+    /*
+        Si no viene de un Spawn,
+        terminamos aquí.
+    */
+
+    if (!spawnInstance) {
+        return groupedPoint;
+    }
+
+
+    /*
+        Scale + rotation alrededor
+        del centro original de la shape.
+    */
+
+    const transformed =
+        transformPoint(
+            groupedPoint,
+            sourceCenter,
+            spawnInstance.scale,
+            spawnInstance.rotation
+        );
+
+
+    /*
+        Finalmente desplazamos el centro
+        de la shape hasta la posición
+        calculada por Star Spawn.
+    */
+
+    return {
+        x:
+            transformed.x
+            +
+            (
+                spawnInstance.position.x -
+                sourceCenter.x
+            ),
+
+        y:
+            transformed.y
+            +
+            (
+                spawnInstance.position.y -
+                sourceCenter.y
+            )
+    };
+}
 
       if (shape.kind === "butterfly") {
 
@@ -1042,21 +1497,18 @@ function renderQuantizedAlphaPixels(
         );
 
 const groupedStart =
-    applyGroupTransform(
-        transformedStart,
-        shape.id
+    applyFinalTransform(
+        transformedStart
     );
 
 const groupedEnd =
-    applyGroupTransform(
-        transformedEnd,
-        shape.id
+    applyFinalTransform(
+        transformedEnd
     );
 
 const groupedControl =
-    applyGroupTransform(
-        transformedControl,
-        shape.id
+    applyFinalTransform(
+        transformedControl
     );
 
 const centerLinePixels =
@@ -1188,13 +1640,12 @@ if (shape.kind === "rectangle") {
 
 
     const polygon =
-        rawCorners.map(
-            point =>
-                applyGroupTransform(
-                    point,
-                    shape.id
-                )
-        );
+    rawCorners.map(
+        point =>
+            applyFinalTransform(
+                point
+            )
+    );
 
 
     const fillPixels =
@@ -1305,13 +1756,12 @@ if (shape.kind === "ellipse") {
 
 
     const polygon =
-        rawContour.map(
-            point =>
-                applyGroupTransform(
-                    point,
-                    shape.id
-                )
-        );
+    rawContour.map(
+        point =>
+            applyFinalTransform(
+                point
+            )
+    );
 
 
     const fillPixels =
@@ -1380,16 +1830,14 @@ if (shape.kind === "ellipse") {
 if (shape.kind === "line") {
 
     const start =
-        applyGroupTransform(
-            shape.start,
-            shape.id
-        );
+    applyFinalTransform(
+        shape.start
+    );
 
-    const end =
-        applyGroupTransform(
-            shape.end,
-            shape.id
-        );
+const end =
+    applyFinalTransform(
+        shape.end
+    );
 
 
     const points =
@@ -1411,22 +1859,19 @@ if (shape.kind === "line") {
 ) {
 
     const start =
-        applyGroupTransform(
-            shape.start,
-            shape.id
-        );
+    applyFinalTransform(
+        shape.start
+    );
 
-    const control =
-        applyGroupTransform(
-            shape.control,
-            shape.id
-        );
+const control =
+    applyFinalTransform(
+        shape.control
+    );
 
-    const end =
-        applyGroupTransform(
-            shape.end,
-            shape.id
-        );
+const end =
+    applyFinalTransform(
+        shape.end
+    );
 
 
     const points =
@@ -1445,12 +1890,331 @@ if (shape.kind === "line") {
     );
 }
 
+if (
+    shape.kind ===
+    "branch"
+) {
+
+    if (
+        shape.points.length < 2
+    ) {
         return null;
     }
 
 
+    const path: Point2D[] =
+        [];
 
-    function renderSpawnInstance(
+
+    for (
+        let i = 0;
+        i <
+        shape.points.length - 1;
+        i++
+    ) {
+
+        const current =
+            shape.points[i];
+
+        const next =
+            shape.points[i + 1];
+
+
+      const transformedStart =
+    applyFinalTransform(
+        current.position
+    );
+
+const transformedControlOut =
+    applyFinalTransform(
+        current.controlOut
+    );
+
+const transformedControlIn =
+    applyFinalTransform(
+        next.controlIn
+    );
+
+const transformedEnd =
+    applyFinalTransform(
+        next.position
+    );
+
+
+const segment =
+    flattenCubicBezier(
+        transformedStart,
+        transformedControlOut,
+        transformedControlIn,
+        transformedEnd,
+        0.35
+    );
+
+
+        if (path.length > 0) {
+            segment.shift();
+        }
+
+
+        path.push(
+            ...segment
+        );
+    }
+const outerPixels =
+    shape.strokeEnabled
+        ? rasterizeThickPath(
+            path,
+            shape.thickness +
+            shape.borderWidth * 2
+        )
+        : [];
+
+
+const innerPixels =
+    shape.fillEnabled
+        ? rasterizeThickPath(
+            path,
+            shape.thickness
+        )
+        : [];
+
+return (
+    <>
+        {renderPixels(
+            outerPixels,
+            shape.strokeColor,
+            `${shape.id}-branch-border`
+        )}
+
+        {renderPixels(
+            innerPixels,
+            shape.fillColor,
+            `${shape.id}-branch-fill`
+        )}
+    </>
+);
+
+           
+}
+
+        return null;
+    }
+
+
+function renderBranchHandleLine(
+    start: Point2D,
+    end: Point2D,
+    key: string
+) {
+
+    const startX =
+        start.x * zoom +
+        zoom / 2;
+
+    const startY =
+        start.y * zoom +
+        zoom / 2;
+
+
+    const endX =
+        end.x * zoom +
+        zoom / 2;
+
+    const endY =
+        end.y * zoom +
+        zoom / 2;
+
+
+    const dx =
+        endX - startX;
+
+    const dy =
+        endY - startY;
+
+
+    const length =
+        Math.sqrt(
+            dx * dx +
+            dy * dy
+        );
+
+
+    const angle =
+        Math.atan2(
+            dy,
+            dx
+        )
+        *
+        180 /
+        Math.PI;
+
+
+    return (
+        <div
+            key={key}
+            className="branch-handle-line"
+            style={{
+                left:
+                    startX,
+
+                top:
+                    startY,
+
+                width:
+                    length,
+
+                transform:
+                    `rotate(${angle}deg)`
+            }}
+        />
+    );
+}
+
+
+function renderBranchEditor() {
+
+    if (
+        !selectedShape ||
+        selectedShape.kind !==
+        "branch"
+    ) {
+        return null;
+    }
+
+
+    return (
+        <>
+            {selectedShape.points.map(
+                (
+                    point,
+                    index
+                ) => {
+
+                    const anchor =
+                        point.position;
+
+                    const controlIn =
+                        point.controlIn;
+
+                    const controlOut =
+                        point.controlOut;
+
+
+                    return (
+                        <div
+                            key={
+                                `branch-controls-${index}`
+                            }
+                        >
+
+                            {renderBranchHandleLine(
+                                anchor,
+                                controlIn,
+                                `branch-in-line-${index}`
+                            )}
+
+                            {renderBranchHandleLine(
+                                anchor,
+                                controlOut,
+                                `branch-out-line-${index}`
+                            )}
+
+
+                            <div
+                                className="branch-handle"
+                                style={{
+                                    left:
+                                        controlIn.x *
+                                        zoom,
+
+                                    top:
+                                        controlIn.y *
+                                        zoom
+                                }}
+                                onMouseDown={
+                                    event => {
+
+                                        event.preventDefault();
+                                        event.stopPropagation();
+
+                                        setBranchDragTarget({
+                                            pointIndex:
+                                                index,
+
+                                            kind:
+                                                "controlIn"
+                                        });
+                                    }
+                                }
+                            />
+
+
+                            <div
+                                className="branch-anchor"
+                                style={{
+                                    left:
+                                        anchor.x *
+                                        zoom,
+
+                                    top:
+                                        anchor.y *
+                                        zoom
+                                }}
+                                onMouseDown={
+                                    event => {
+
+                                        event.preventDefault();
+                                        event.stopPropagation();
+
+                                        setBranchDragTarget({
+                                            pointIndex:
+                                                index,
+
+                                            kind:
+                                                "position"
+                                        });
+                                    }
+                                }
+                            />
+
+
+                            <div
+                                className="branch-handle"
+                                style={{
+                                    left:
+                                        controlOut.x *
+                                        zoom,
+
+                                    top:
+                                        controlOut.y *
+                                        zoom
+                                }}
+                                onMouseDown={
+                                    event => {
+
+                                        event.preventDefault();
+                                        event.stopPropagation();
+
+                                        setBranchDragTarget({
+                                            pointIndex:
+                                                index,
+
+                                            kind:
+                                                "controlOut"
+                                        });
+                                    }
+                                }
+                            />
+
+                        </div>
+                    );
+                }
+            )}
+        </>
+    );
+}
+
+function renderSpawnInstance(
     instance: SpawnInstance
 ) {
 
@@ -1475,86 +2239,10 @@ if (shape.kind === "line") {
     }
 
 
-    const sourceCenter =
-        getShapeCenter(
-            sourceShape
-        );
-
-
-    const dx =
-        instance.position.x -
-        sourceCenter.x;
-
-    const dy =
-        instance.position.y -
-        sourceCenter.y;
-
-
-    /*
-        PRIMERA VERSIÓN:
-
-        soportamos Butterfly perfectamente.
-    */
-
-    if (
-        sourceShape.kind ===
-        "butterfly"
-    ) {
-
-        const spawnedShape: VectorShape = {
-
-            ...sourceShape,
-
-            id:
-                instance.id,
-
-            start: {
-                x:
-                    sourceShape.start.x +
-                    dx,
-
-                y:
-                    sourceShape.start.y +
-                    dy
-            },
-
-            end: {
-                x:
-                    sourceShape.end.x +
-                    dx,
-
-                y:
-                    sourceShape.end.y +
-                    dy
-            },
-
-            control: {
-                x:
-                    sourceShape.control.x +
-                    dx,
-
-                y:
-                    sourceShape.control.y +
-                    dy
-            },
-
-            rotation:
-                sourceShape.rotation +
-                instance.rotation,
-
-            scale:
-                sourceShape.scale *
-                instance.scale
-        };
-
-
-        return renderShapePixels(
-            spawnedShape
-        );
-    }
-
-
-    return null;
+    return renderShapePixels(
+        sourceShape,
+        instance
+    );
 }
 
 
@@ -1595,25 +2283,247 @@ function renderSpawnGenerator(
         </>
     );
 }
+function renderBranchDraft() {
 
-    function renderDraftPoints() {
+    if (
+        selectedTool !== "branch" ||
+        branchDraftPoints.length < 2
+    ) {
+        return null;
+    }
 
-        return draftPoints.map(
-            (point, index) => (
-                <div
-                    key={`draft-${index}`}
-                    className="vector-control-point"
-                    style={{
-                        left:
-                            point.x * zoom + zoom / 2,
-                        top:
-                            point.y * zoom + zoom / 2
-                    }}
-                    title={`(${point.x}, ${point.y})`}
-                />
-            )
+
+    const points =
+        buildBranchPoints(
+            branchDraftPoints
+        );
+
+
+    const path: Point2D[] =
+        [];
+
+
+    for (
+        let i = 0;
+        i < points.length - 1;
+        i++
+    ) {
+
+        const current =
+            points[i];
+
+        const next =
+            points[i + 1];
+
+
+        const segment =
+            flattenCubicBezier(
+                current.position,
+                current.controlOut,
+                next.controlIn,
+                next.position,
+                0.35
+            );
+
+
+        if (
+            path.length > 0
+        ) {
+            segment.shift();
+        }
+
+
+        path.push(
+            ...segment
         );
     }
+
+
+    const outerPixels =
+        rasterizeThickPath(
+            path,
+            7
+        );
+
+
+    const innerPixels =
+        rasterizeThickPath(
+            path,
+            5
+        );
+
+
+    return (
+        <>
+            {renderPixels(
+                outerPixels,
+                strokeColor,
+                "branch-draft-border"
+            )}
+
+            {renderPixels(
+                innerPixels,
+                selectedColor,
+                "branch-draft-fill"
+            )}
+        </>
+    );
+}
+ function renderDraftPoints() {
+
+    const points =
+        selectedTool === "branch"
+            ? branchDraftPoints
+            : draftPoints;
+
+
+    return points.map(
+        (point, index) => (
+            <div
+                key={`draft-${index}`}
+                className="vector-control-point"
+                style={{
+                    left:
+                        point.x * zoom +
+                        zoom / 2,
+
+                    top:
+                        point.y * zoom +
+                        zoom / 2
+                }}
+                title={
+                    `(${point.x}, ${point.y})`
+                }
+            />
+        )
+    );
+}
+
+
+function updateBranchPoint(
+    pointIndex: number,
+    kind:
+        | "position"
+        | "controlIn"
+        | "controlOut",
+    nextPosition: Point2D
+) {
+
+    if (!selectedShapeId) {
+        return;
+    }
+
+
+    setShapes(
+        previous =>
+            previous.map(
+                shape => {
+
+                    if (
+                        shape.id !==
+                        selectedShapeId ||
+                        shape.kind !==
+                        "branch"
+                    ) {
+                        return shape;
+                    }
+
+
+                    const points =
+                        shape.points.map(
+                            (
+                                point,
+                                index
+                            ) => {
+
+                                if (
+                                    index !==
+                                    pointIndex
+                                ) {
+                                    return point;
+                                }
+
+
+                                /*
+                                    Al mover el anchor,
+                                    desplazamos también
+                                    sus dos handles.
+                                */
+                                if (
+                                    kind ===
+                                    "position"
+                                ) {
+
+                                    const dx =
+                                        nextPosition.x -
+                                        point.position.x;
+
+                                    const dy =
+                                        nextPosition.y -
+                                        point.position.y;
+
+
+                                    return {
+                                        ...point,
+
+                                        position:
+                                            nextPosition,
+
+                                        controlIn: {
+                                            x:
+                                                point.controlIn.x +
+                                                dx,
+
+                                            y:
+                                                point.controlIn.y +
+                                                dy
+                                        },
+
+                                        controlOut: {
+                                            x:
+                                                point.controlOut.x +
+                                                dx,
+
+                                            y:
+                                                point.controlOut.y +
+                                                dy
+                                        }
+                                    };
+                                }
+
+
+                                if (
+                                    kind ===
+                                    "controlIn"
+                                ) {
+                                    return {
+                                        ...point,
+
+                                        controlIn:
+                                            nextPosition
+                                    };
+                                }
+
+
+                                return {
+                                    ...point,
+
+                                    controlOut:
+                                        nextPosition
+                                };
+                            }
+                        );
+
+
+                    return {
+                        ...shape,
+                        points
+                    };
+                }
+            )
+    );
+}
+
         function updateSelectedShape(
             changes: Partial<VectorShape>
         ) {
@@ -1770,7 +2680,20 @@ function renderSpawnGenerator(
 >
     + Star Spawn
 </button>
-
+<button
+    className={
+        selectedTool === "branch"
+            ? "vector-tool selected"
+            : "vector-tool"
+    }
+    onClick={() =>
+        setSelectedTool(
+            "branch"
+        )
+    }
+>
+    Branch
+</button>
                 <hr />
 </div>
 <button
@@ -1840,16 +2763,20 @@ function renderSpawnGenerator(
                     ? "vector-group-item selected"
                     : "vector-group-item"
             }
-            onClick={() => {
+           onClick={() => {
 
-                setSelectedGroupId(
-                    group.id
-                );
+    setSelectedGroupId(
+        group.id
+    );
 
-                setSelectedShapeId(
-                    null
-                );
-            }}
+    setSelectedShapeId(
+        null
+    );
+
+    setSelectedGeneratorId(
+        null
+    );
+}}
         >
             {group.name}
             {" "}
@@ -1896,14 +2823,18 @@ function renderSpawnGenerator(
                 }
                 onClick={() => {
 
-                    setSelectedShapeId(
-                        shape.id
-                    );
+    setSelectedShapeId(
+        shape.id
+    );
 
-                    setSelectedGroupId(
-                        null
-                    );
-                }}
+    setSelectedGroupId(
+        null
+    );
+
+    setSelectedGeneratorId(
+        null
+    );
+}}
             >
                 {shape.name}
             </button>
@@ -1995,6 +2926,53 @@ function renderSpawnGenerator(
                             click 2 = radius
                         </span>
                     )}
+
+                    {selectedTool === "branch" && (
+    <div className="branch-draft-status">
+
+        <span>
+            Branch path:
+            {" "}
+            <strong>
+                {branchDraftPoints.length}
+            </strong>
+            {" "}
+            {branchDraftPoints.length === 1
+                ? "point"
+                : "points"}
+        </span>
+
+
+        {branchDraftPoints.length > 0 && (
+            <div className="branch-draft-actions">
+
+                <button
+                    type="button"
+                    onClick={() => {
+                        setBranchDraftPoints([]);
+                    }}
+                >
+                    Cancel
+                </button>
+
+
+                <button
+                    type="button"
+                    disabled={
+                        branchDraftPoints.length < 2
+                    }
+                    onClick={() => {
+                        finishBranch();
+                    }}
+                >
+                    Accept
+                </button>
+
+            </div>
+        )}
+
+    </div>
+)}
                     </div>
 
                 </div>
@@ -2002,25 +2980,30 @@ function renderSpawnGenerator(
 
                 <div className="vector-canvas-wrapper">
 
-                    <div
-                        className="vector-grid"
-                        style={gridStyle}
-                        onClick={handleGridClick}
-                    >
+                  <div
+    ref={gridRef}
+    className="vector-grid"
+    style={gridStyle}
+    onClick={handleGridClick}
+>
 
                         <div className="vector-origin">
                             0,0
                         </div>
 
                         <div className="vector-layer">
-                            {shapes.map(shape =>
-                                renderShapePixels(
-                                    shape
-                                )
-                            )}
-                        </div>
 
-                        <div className="vector-layer">
+    {shapes.map(
+        shape =>
+            renderShapePixels(
+                shape
+            )
+    )}
+
+</div>
+
+
+<div className="vector-layer">
 
     {spawnGenerators.map(
         generator =>
@@ -2031,9 +3014,20 @@ function renderSpawnGenerator(
 
 </div>
 
-                        <div className="vector-layer">
-                            {renderDraftPoints()}
-                        </div>
+
+<div className="vector-layer">
+    {renderBranchDraft()}
+</div>
+
+
+<div className="vector-layer branch-editor-layer">
+    {renderBranchEditor()}
+</div>
+
+
+<div className="vector-layer">
+    {renderDraftPoints()}
+</div>
 
                     </div>
 
@@ -2047,6 +3041,39 @@ function renderSpawnGenerator(
                 <h3>
                     Properties
                 </h3>
+
+                <div
+    style={{
+        padding: "8px",
+        background: "#111",
+        color: "#00ff66",
+        fontSize: "12px"
+    }}
+>
+    <div>
+        shapeId:
+        {" "}
+        {selectedShapeId ?? "NULL"}
+    </div>
+
+    <div>
+        shape:
+        {" "}
+        {selectedShape?.kind ?? "NULL"}
+    </div>
+
+    <div>
+        group:
+        {" "}
+        {selectedGroup?.name ?? "NULL"}
+    </div>
+
+    <div>
+        generator:
+        {" "}
+        {selectedGenerator?.name ?? "NULL"}
+    </div>
+</div>
 <div className="vector-default-properties">
 
                 <div className="vector-property">
@@ -2103,7 +3130,292 @@ function renderSpawnGenerator(
                 </div>
 
                 <hr />
-                        {selectedGroup && (
+
+{selectedGenerator && (
+    <>
+        <h3>
+            Selected Generator
+        </h3>
+
+        {selectedGenerator.kind === "star-spawn" && (
+            <div className="vector-selected-data">
+
+                <div>
+                    <strong>
+                        Name:
+                    </strong>
+                    {" "}
+                    {selectedGenerator.name}
+                </div>
+
+                <div>
+                    <strong>
+                        Type:
+                    </strong>
+                    {" "}
+                    Star Spawn
+                </div>
+
+
+                <div className="vector-property compact-full">
+                    <label>
+                        Count
+                    </label>
+
+                    <div className="range-number-control">
+
+                        <input
+                            type="range"
+                            min="1"
+                            max="64"
+                            step="1"
+                            value={
+                                selectedGenerator.count
+                            }
+                            onChange={
+                                event =>
+                                    updateSelectedGenerator({
+                                        count:
+                                            Number(
+                                                event.target.value
+                                            )
+                                    })
+                            }
+                        />
+
+                        <input
+                            type="number"
+                            min="1"
+                            max="64"
+                            step="1"
+                            value={
+                                selectedGenerator.count
+                            }
+                            onChange={
+                                event =>
+                                    updateSelectedGenerator({
+                                        count:
+                                            Math.max(
+                                                1,
+                                                Number(
+                                                    event.target.value
+                                                )
+                                            )
+                                    })
+                            }
+                        />
+
+                    </div>
+                </div>
+
+
+                <div className="vector-property compact-full">
+                    <label>
+                        Radius
+                    </label>
+
+                    <div className="range-number-control">
+
+                        <input
+                            type="range"
+                            min="0"
+                            max="128"
+                            step="1"
+                            value={
+                                selectedGenerator.radius
+                            }
+                            onChange={
+                                event =>
+                                    updateSelectedGenerator({
+                                        radius:
+                                            Number(
+                                                event.target.value
+                                            )
+                                    })
+                            }
+                        />
+
+                        <input
+                            type="number"
+                            min="0"
+                            max="128"
+                            step="1"
+                            value={
+                                selectedGenerator.radius
+                            }
+                            onChange={
+                                event =>
+                                    updateSelectedGenerator({
+                                        radius:
+                                            Math.max(
+                                                0,
+                                                Number(
+                                                    event.target.value
+                                                )
+                                            )
+                                    })
+                            }
+                        />
+
+                    </div>
+                </div>
+
+
+                <div className="vector-property compact-full">
+                    <label>
+                        Angle Offset
+                    </label>
+
+                    <div className="range-number-control">
+
+                        <input
+                            type="range"
+                            min="-180"
+                            max="180"
+                            step="1"
+                            value={
+                                selectedGenerator.angleOffset *
+                                180 /
+                                Math.PI
+                            }
+                            onChange={
+                                event =>
+                                    updateSelectedGenerator({
+                                        angleOffset:
+                                            Number(
+                                                event.target.value
+                                            )
+                                            *
+                                            Math.PI /
+                                            180
+                                    })
+                            }
+                        />
+
+                        <input
+                            type="number"
+                            min="-180"
+                            max="180"
+                            step="1"
+                            value={
+                                Math.round(
+                                    selectedGenerator.angleOffset *
+                                    180 /
+                                    Math.PI
+                                )
+                            }
+                            onChange={
+                                event =>
+                                    updateSelectedGenerator({
+                                        angleOffset:
+                                            Number(
+                                                event.target.value
+                                            )
+                                            *
+                                            Math.PI /
+                                            180
+                                    })
+                            }
+                        />
+
+                    </div>
+                </div>
+
+
+                <div className="vector-property compact-full">
+                    <label>
+                        Scale
+                    </label>
+
+                    <div className="range-number-control">
+
+                        <input
+                            type="range"
+                            min="0.1"
+                            max="5"
+                            step="0.05"
+                            value={
+                                selectedGenerator.scale
+                            }
+                            onChange={
+                                event =>
+                                    updateSelectedGenerator({
+                                        scale:
+                                            Number(
+                                                event.target.value
+                                            )
+                                    })
+                            }
+                        />
+
+                        <input
+                            type="number"
+                            min="0.1"
+                            max="5"
+                            step="0.05"
+                            value={
+                                selectedGenerator.scale
+                            }
+                            onChange={
+                                event =>
+                                    updateSelectedGenerator({
+                                        scale:
+                                            Math.max(
+                                                0.1,
+                                                Number(
+                                                    event.target.value
+                                                )
+                                            )
+                                    })
+                            }
+                        />
+
+                    </div>
+                </div>
+
+
+                <div className="vector-property compact-full">
+                    <label>
+                        Rotation Mode
+                    </label>
+
+                    <select
+                        value={
+                            selectedGenerator.rotationMode
+                        }
+                        onChange={
+                            event =>
+                                updateSelectedGenerator({
+                                    rotationMode:
+                                        event.target.value as
+                                        StarSpawnGenerator["rotationMode"]
+                                })
+                        }
+                    >
+                        <option value="keep">
+                            Keep
+                        </option>
+
+                        <option value="outward">
+                            Outward
+                        </option>
+
+                        <option value="inward">
+                            Inward
+                        </option>
+
+                        <option value="tangent">
+                            Tangent
+                        </option>
+                    </select>
+                </div>
+
+            </div>
+        )}
+    </>
+)}
+
+                        {!selectedGenerator && selectedGroup && (
     <>
         <h3>
             Selected Group
@@ -2241,9 +3553,20 @@ function renderSpawnGenerator(
     </h3>
 )}
 
-                {!selectedGroup && selectedShape ? (
+                {!selectedGenerator && !selectedGroup && selectedShape ? (
     <div className="vector-selected-data">
-
+<div
+    style={{
+        gridColumn: "1 / -1",
+        padding: "10px",
+        background: "yellow",
+        color: "black"
+    }}
+>
+    DEBUG:
+    {" "}
+    {selectedShape.kind}
+</div>
         <div>
             <strong>
                 Name:
@@ -3040,6 +4363,118 @@ function renderSpawnGenerator(
 )}
 
 
+{selectedShape.kind === "branch" && (
+    <>
+        <div className="vector-property">
+
+            <label>
+                Thickness
+            </label>
+
+            <div className="range-number-control">
+
+                <input
+                    type="range"
+                    min="1"
+                    max="40"
+                    step="1"
+                    value={
+                        selectedShape.thickness
+                    }
+                    onChange={
+                        event =>
+                            updateSelectedShape({
+                                thickness:
+                                    Number(
+                                        event.target.value
+                                    )
+                            })
+                    }
+                />
+
+                <input
+                    type="number"
+                    min="1"
+                    max="40"
+                    step="1"
+                    value={
+                        selectedShape.thickness
+                    }
+                    onChange={
+                        event =>
+                            updateSelectedShape({
+                                thickness:
+                                    clamp(
+                                        Number(
+                                            event.target.value
+                                        ),
+                                        1,
+                                        40
+                                    )
+                            })
+                    }
+                />
+
+            </div>
+
+        </div>
+
+
+        <div className="vector-property">
+
+            <label>
+                Border Width
+            </label>
+
+            <div className="range-number-control">
+
+                <input
+                    type="range"
+                    min="0"
+                    max="10"
+                    step="1"
+                    value={
+                        selectedShape.borderWidth
+                    }
+                    onChange={
+                        event =>
+                            updateSelectedShape({
+                                borderWidth:
+                                    Number(
+                                        event.target.value
+                                    )
+                            })
+                    }
+                />
+
+                <input
+                    type="number"
+                    min="0"
+                    max="10"
+                    step="1"
+                    value={
+                        selectedShape.borderWidth
+                    }
+                    onChange={
+                        event =>
+                            updateSelectedShape({
+                                borderWidth:
+                                    clamp(
+                                        Number(
+                                            event.target.value
+                                        ),
+                                        0,
+                                        10
+                                    )
+                            })
+                    }
+                />
+
+            </div>
+
+        </div>
+    </>
+)}
 
 
         <button
