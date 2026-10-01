@@ -196,6 +196,11 @@ export type SpawnInstance = {
     rotation: number;
 
     scale: number;
+
+    anchorMode?:
+    | "center"
+    | "start"
+    | "end";
 };
 
 export type BranchPoint = {
@@ -222,4 +227,19 @@ export type BranchShape = {
 
     fillEnabled: boolean;
     strokeEnabled: boolean;
+
+    generativeCount: number;
+generativeShapeId: string | null;
+
+generativeRotationMode:
+    | "keep"
+    | "tangent"
+    | "normal-left"
+    | "normal-right"
+    | "alternate-normal";
+
+    generativeAnchorMode:
+    | "center"
+    | "start"
+    | "end";
 };

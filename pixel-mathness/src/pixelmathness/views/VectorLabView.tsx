@@ -1214,12 +1214,21 @@ function finishBranch() {
         points,
 
                
-                thickness:
-                    5,
+              thickness:
+    5,
 
-                borderWidth:
-                    1,
+borderWidth:
+    1,
 
+generativeCount:
+    0,
+
+generativeShapeId:
+    null,
+generativeRotationMode:
+    "keep",
+    generativeAnchorMode:
+    "center",
         fillColor:
             selectedColor,
 
@@ -1372,6 +1381,264 @@ function renderQuantizedAlphaPixels(
         }
     );
 }
+type GenerativePathPoint = {
+    position: Point2D;
+    tangentAngle: number;
+};
+
+
+function getEvenlySpacedPathPoints(
+    path: Point2D[],
+    count: number
+): GenerativePathPoint[] {
+
+    if (
+        path.length < 2 ||
+        count <= 0
+    ) {
+        return [];
+    }
+
+
+    const cumulativeLengths: number[] = [
+        0
+    ];
+
+
+    let totalLength =
+        0;
+
+
+    /*
+        Primer recorrido:
+        solamente calcula longitud acumulada.
+    */
+
+    for (
+        let i = 1;
+        i < path.length;
+        i++
+    ) {
+
+        const previous =
+            path[i - 1];
+
+        const current =
+            path[i];
+
+
+        const dx =
+            current.x -
+            previous.x;
+
+        const dy =
+            current.y -
+            previous.y;
+
+
+        totalLength +=
+            Math.sqrt(
+                dx * dx +
+                dy * dy
+            );
+
+
+        cumulativeLengths.push(
+            totalLength
+        );
+    }
+
+
+    if (
+        totalLength === 0
+    ) {
+        return [];
+    }
+
+
+    const result:
+        GenerativePathPoint[] =
+        [];
+
+
+    /*
+        Segundo recorrido:
+        buscamos la posición correspondiente
+        a cada distancia uniforme.
+    */
+
+    for (
+        let spawnIndex = 1;
+        spawnIndex <= count;
+        spawnIndex++
+    ) {
+
+        const targetDistance =
+            totalLength *
+            (
+                spawnIndex /
+                (
+                    count +
+                    1
+                )
+            );
+
+
+        let segmentIndex =
+            1;
+
+
+        while (
+            segmentIndex <
+                cumulativeLengths.length &&
+            cumulativeLengths[
+                segmentIndex
+            ] <
+                targetDistance
+        ) {
+
+            segmentIndex++;
+        }
+
+
+        const previousIndex =
+            Math.max(
+                0,
+                segmentIndex - 1
+            );
+
+
+        const nextIndex =
+            Math.min(
+                segmentIndex,
+                path.length - 1
+            );
+
+
+        const segmentStart =
+            path[
+                previousIndex
+            ];
+
+
+        const segmentEnd =
+            path[
+                nextIndex
+            ];
+
+
+        const distanceBefore =
+            cumulativeLengths[
+                previousIndex
+            ];
+
+
+        const distanceAfter =
+            cumulativeLengths[
+                nextIndex
+            ];
+
+
+        const segmentLength =
+            distanceAfter -
+            distanceBefore;
+
+
+        const t =
+            segmentLength === 0
+                ? 0
+                : (
+                    targetDistance -
+                    distanceBefore
+                )
+                /
+                segmentLength;
+
+
+        const position: Point2D = {
+
+            x:
+                segmentStart.x +
+                (
+                    segmentEnd.x -
+                    segmentStart.x
+                )
+                *
+                t,
+
+            y:
+                segmentStart.y +
+                (
+                    segmentEnd.y -
+                    segmentStart.y
+                )
+                *
+                t
+        };
+
+
+        /*
+            Calculamos la tangente usando
+            puntos alrededor del punto actual.
+
+            Esto evita depender de un único
+            segmento microscópico.
+        */
+
+        const tangentStartIndex =
+            Math.max(
+                0,
+                previousIndex - 2
+            );
+
+
+        const tangentEndIndex =
+            Math.min(
+                path.length - 1,
+                nextIndex + 2
+            );
+
+
+        const tangentStart =
+            path[
+                tangentStartIndex
+            ];
+
+
+        const tangentEnd =
+            path[
+                tangentEndIndex
+            ];
+
+
+        const tangentDx =
+            tangentEnd.x -
+            tangentStart.x;
+
+
+        const tangentDy =
+            tangentEnd.y -
+            tangentStart.y;
+
+
+        const tangentAngle =
+            Math.atan2(
+                tangentDy,
+                tangentDx
+            );
+
+
+        result.push({
+            position,
+            tangentAngle
+        });
+    }
+
+
+    return result;
+}
+
+
     function renderShapePixels(
     shape: VectorShape,
     spawnInstance?: SpawnInstance
@@ -1381,8 +1648,202 @@ const sourceCenter =
         getShapeCenter(shape),
         shape.id
     );
+function getSpawnAnchorPoint(): Point2D {
+
+    if (
+        !spawnInstance ||
+        !spawnInstance.anchorMode ||
+        spawnInstance.anchorMode === "center"
+    ) {
+        return sourceCenter;
+    }
 
 
+    /*
+        Butterfly:
+        start/end son exactamente
+        su eje longitudinal.
+    */
+
+    if (
+        shape.kind === "butterfly"
+    ) {
+
+        const pivot: Point2D = {
+            x:
+                (
+                    shape.start.x +
+                    shape.end.x
+                ) / 2,
+
+            y:
+                (
+                    shape.start.y +
+                    shape.end.y
+                ) / 2
+        };
+
+
+        const rawAnchor =
+            spawnInstance.anchorMode === "start"
+                ? shape.start
+                : shape.end;
+
+
+        /*
+            Aplicamos primero las propias
+            transformaciones de Butterfly.
+        */
+
+        const locallyTransformedAnchor =
+            transformPoint(
+                rawAnchor,
+                pivot,
+                shape.scale,
+                shape.rotation
+            );
+
+
+        return applyGroupTransform(
+            locallyTransformedAnchor,
+            shape.id
+        );
+    }
+
+
+    /*
+        Line / Rectangle:
+        también tienen start/end.
+    */
+
+    if (
+        shape.kind === "line" ||
+        shape.kind === "rectangle"
+    ) {
+
+        const rawAnchor =
+            spawnInstance.anchorMode === "start"
+                ? shape.start
+                : shape.end;
+
+
+        return applyGroupTransform(
+            rawAnchor,
+            shape.id
+        );
+    }
+
+
+    /*
+        Quadratic Bezier
+    */
+
+    if (
+        shape.kind === "quadratic-bezier"
+    ) {
+
+        const rawAnchor =
+            spawnInstance.anchorMode === "start"
+                ? shape.start
+                : shape.end;
+
+
+        return applyGroupTransform(
+            rawAnchor,
+            shape.id
+        );
+    }
+
+
+    return sourceCenter;
+}
+
+const sourceAnchor =
+    getSpawnAnchorPoint();
+
+
+function getShapeForwardAngle(
+    shape: VectorShape
+): number {
+
+    if (
+        shape.kind === "line" ||
+        shape.kind === "rectangle"
+    ) {
+
+        return Math.atan2(
+            shape.end.y -
+            shape.start.y,
+
+            shape.end.x -
+            shape.start.x
+        );
+    }
+
+
+    if (
+        shape.kind ===
+        "quadratic-bezier"
+    ) {
+
+        return Math.atan2(
+            shape.end.y -
+            shape.start.y,
+
+            shape.end.x -
+            shape.start.x
+        );
+    }
+
+
+    if (
+        shape.kind ===
+        "butterfly"
+    ) {
+
+        return Math.atan2(
+            shape.end.y -
+            shape.start.y,
+
+            shape.end.x -
+            shape.start.x
+        )
+        +
+        shape.rotation;
+    }
+
+
+    if (
+        shape.kind ===
+        "branch"
+    ) {
+
+        if (
+            shape.points.length < 2
+        ) {
+            return 0;
+        }
+
+
+        const start =
+            shape.points[0]
+                .position;
+
+        const end =
+            shape.points[
+                shape.points.length - 1
+            ].position;
+
+
+        return Math.atan2(
+            end.y - start.y,
+            end.x - start.x
+        );
+    }
+
+
+    return 0;
+}
 function applyFinalTransform(
     point: Point2D
 ): Point2D {
@@ -1429,23 +1890,32 @@ function applyFinalTransform(
         calculada por Star Spawn.
     */
 
-    return {
-        x:
-            transformed.x
-            +
-            (
-                spawnInstance.position.x -
-                sourceCenter.x
-            ),
+    const transformedAnchor =
+    transformPoint(
+        sourceAnchor,
+        sourceCenter,
+        spawnInstance.scale,
+        spawnInstance.rotation
+    );
 
-        y:
-            transformed.y
-            +
-            (
-                spawnInstance.position.y -
-                sourceCenter.y
-            )
-    };
+
+return {
+    x:
+        transformed.x
+        +
+        (
+            spawnInstance.position.x -
+            transformedAnchor.x
+        ),
+
+    y:
+        transformed.y
+        +
+        (
+            spawnInstance.position.y -
+            transformedAnchor.y
+        )
+};
 }
 
       if (shape.kind === "butterfly") {
@@ -1977,7 +2447,28 @@ const innerPixels =
             shape.thickness
         )
         : [];
+const generativePoints =
+    getEvenlySpacedPathPoints(
+        path,
+        shape.generativeCount
+    );
 
+
+const generativeShape =
+    shape.generativeShapeId
+        ? shapes.find(
+            candidate =>
+                candidate.id ===
+                shape.generativeShapeId
+        )
+        : null;
+
+        const generativeShapeForwardAngle =
+    generativeShape
+        ? getShapeForwardAngle(
+            generativeShape
+        )
+        : 0;
 return (
     <>
         {renderPixels(
@@ -1991,6 +2482,145 @@ return (
             shape.fillColor,
             `${shape.id}-branch-fill`
         )}
+
+
+        {generativeShape &&
+            generativePoints.map(
+    (
+        generativePoint,
+        index
+    ) => {
+
+        const tangentDegrees =
+    generativePoint.tangentAngle *
+    180 /
+    Math.PI;
+let rotation =
+    0;
+
+
+switch (
+    shape.generativeRotationMode
+) {
+
+    case "tangent":
+
+        rotation =
+            tangentDegrees;
+
+        break;
+
+
+    case "normal-left":
+
+        rotation =
+            tangentDegrees +
+            90;
+
+        break;
+
+
+    case "normal-right":
+
+        rotation =
+            tangentDegrees -
+            90;
+
+        break;
+
+
+    case "alternate-normal":
+
+        rotation =
+            tangentDegrees
+            +
+            (
+                index % 2 === 0
+                    ? 90
+                    : -90
+            );
+
+        break;
+
+
+    case "keep":
+    default:
+
+        rotation =
+            0;
+
+        break;
+}
+                 const branchGroup =
+    getGroupForShape(
+        shape.id
+    );
+
+
+
+const group =
+    getGroupForShape(
+        shape.id
+    );
+
+
+const groupScale =
+    group
+        ? group.scale
+        : 1;
+
+
+/*
+    Si esta Branch a su vez fue
+    spawneada por otra cosa,
+    heredamos también esa escala.
+*/
+const parentSpawnScale =
+    spawnInstance
+        ? spawnInstance.scale
+        : 1;
+
+
+const inheritedScale =
+    groupScale *
+    parentSpawnScale;
+const instance: SpawnInstance = {
+
+    id:
+        `${shape.id}-generative-${index}`,
+
+    target: {
+        kind: "shape",
+        id:
+            generativeShape.id
+    },
+
+    position:
+        generativePoint.position,
+
+    rotation,
+
+    scale:
+        inheritedScale,
+
+    anchorMode:
+        shape.generativeAnchorMode
+};
+                    return (
+                        <div
+                            key={
+                                instance.id
+                            }
+                            className="vector-layer"
+                        >
+                            {renderShapePixels(
+                                generativeShape,
+                                instance
+                            )}
+                        </div>
+                    );
+                }
+            )}
     </>
 );
 
@@ -4473,6 +5103,197 @@ function updateBranchPoint(
             </div>
 
         </div>
+        <div className="vector-property">
+
+    <label>
+        Generative Branches
+    </label>
+
+    <div className="range-number-control">
+
+        <input
+            type="range"
+            min="0"
+            max="32"
+            step="1"
+            value={
+                selectedShape.generativeCount
+            }
+            onChange={
+                event =>
+                    updateSelectedShape({
+                        generativeCount:
+                            Number(
+                                event.target.value
+                            )
+                    })
+            }
+        />
+
+        <input
+            type="number"
+            min="0"
+            max="32"
+            step="1"
+            value={
+                selectedShape.generativeCount
+            }
+            onChange={
+                event =>
+                    updateSelectedShape({
+                        generativeCount:
+                            clamp(
+                                Number(
+                                    event.target.value
+                                ),
+                                0,
+                                32
+                            )
+                    })
+            }
+        />
+
+    </div>
+
+</div>
+
+
+<div className="vector-property">
+
+    <label>
+        Spawn Object
+    </label>
+
+    <select
+        value={
+            selectedShape.generativeShapeId
+            ??
+            ""
+        }
+        onChange={
+            event =>
+                updateSelectedShape({
+                    generativeShapeId:
+                        event.target.value === ""
+                            ? null
+                            : event.target.value
+                })
+        }
+    >
+
+        <option value="">
+            None
+        </option>
+
+
+        {shapes
+            .filter(
+                candidate =>
+                    candidate.id !==
+                    selectedShape.id
+                    &&
+                    candidate.kind !==
+                    "branch"
+            )
+            .map(
+                candidate => (
+                    <option
+                        key={
+                            candidate.id
+                        }
+                        value={
+                            candidate.id
+                        }
+                    >
+                        {candidate.name}
+                    </option>
+                )
+            )}
+
+    </select>
+
+</div>
+
+<div className="vector-property">
+
+    <label>
+        Rotation Mode
+    </label>
+
+    <select
+        value={
+            selectedShape.generativeRotationMode
+        }
+        onChange={
+            event =>
+                updateSelectedShape({
+                    generativeRotationMode:
+                        event.target.value as
+                            | "keep"
+                            | "tangent"
+                            | "normal-left"
+                            | "normal-right"
+                            | "alternate-normal"
+                })
+        }
+    >
+        <option value="keep">
+            Keep
+        </option>
+
+        <option value="tangent">
+            Tangent
+        </option>
+
+        <option value="normal-left">
+            Perpendicular Left
+        </option>
+
+        <option value="normal-right">
+            Perpendicular Right
+        </option>
+
+        <option value="alternate-normal">
+            Alternate Perpendicular
+        </option>
+    </select>
+
+</div>
+<div className="vector-property">
+
+    <label>
+        Spawn Anchor
+    </label>
+
+    <select
+        value={
+            selectedShape.generativeAnchorMode
+        }
+        onChange={
+            event =>
+                updateSelectedShape({
+                    generativeAnchorMode:
+                        event.target.value as
+                            | "center"
+                            | "start"
+                            | "end"
+                })
+        }
+    >
+        <option value="center">
+            Center
+        </option>
+
+        <option value="start">
+            Start
+        </option>
+
+        <option value="end">
+            End
+        </option>
+    </select>
+
+</div>
     </>
 )}
 
