@@ -14,7 +14,7 @@ const PRESETS={marca:["#0894ff","#c959dd","#ff2e54","#ff9004","#0066ff","#ff3fcd
   atardecer:["#ff5e5b","#ff9e44","#ffd166","#8a4fc4","#3d2c8d","#ef476f"],bosque:["#2f5d3a","#6b8f4e","#a3b18a","#8b5e34","#d4a373","#3a4a3f"],
   oceano:["#023e8a","#0077b6","#00b4d8","#90e0ef","#caf0f8","#03045e"],mono:["#151515","#4c4c4c","#707070","#999999","#c9c9c9","#f2f2f2"]};
 const PRESET_NAMES=[["marca","Marca Pairtial"],["pastel","Pastel"],["atardecer","Atardecer"],["bosque","Bosque"],["oceano","Océano"],["mono","Monocromo"],["custom","Personalizada"]];
-const WS=Object.assign({veg:.7,speed:2,zoom:innerWidth<600?2:3,dens:.8,pool:28,dir:0,check:false,draw:5,par:3,every:2.5,renew:true,src:"random",pal:"marca",palette:PRESETS.marca.slice(),palAll:false,hue:0,alpha:1,bio:"mixto",fauna:.5,species:null},store.W||{});
+const WS=Object.assign({veg:.7,speed:2,zoom:innerWidth<600?2:3,dens:.8,pool:160,dir:0,check:false,draw:5,par:3,every:2.5,renew:true,src:"random",pal:"marca",palette:PRESETS.marca.slice(),palAll:false,hue:0,alpha:1,light:0,bio:"mixto",fauna:.5,species:null},store.W||{});
 if(!Array.isArray(WS.palette)||WS.palette.length!==6||!WS.palette.every(c=>/^#[0-9a-f]{6}$/i.test(c)))WS.palette=PRESETS.marca.slice();
 if(!PRESET_NAMES.some(p=>p[0]===WS.pal))WS.pal="marca";
 const save=()=>{try{localStorage.setItem("furnilab2",JSON.stringify({type,G,P:allP,W:WS}))}catch(e){}};
@@ -210,14 +210,21 @@ function specFor(i,g,bio){const r=rng(Math.floor(h32(seed,i,g)*2147483646)+1);r(
   const p=genParams(t,r,bio),rr=r()<.5?0:1,f=buildWG(t,p);
   return{t,p,rot:rr,f,fw:rr%2?f.footprint[1]:f.footprint[0],fd:rr%2?f.footprint[0]:f.footprint[1]}}
 // En modo mixto cada ranura pertenece a un bioma; cada zona del mundo elige entre las ranuras de su bioma.
-let slotsByBio={};
-function ensureSlots(){while(slots.length<WS.pool)slots.push({i:slots.length,g:0,state:"queued"});slots.length=WS.pool;slotsByBio={};
-  slots.forEach((s,i)=>{s.bio=WS.bio==="mixto"?MIX[i%MIX.length]:WS.bio;(slotsByBio[s.bio]=slotsByBio[s.bio]||[]).push(s)})}
+// Cada casilla del mundo tiene SU propio objeto (semilla = casilla + generación): nunca hay dos iguales.
+// Las instancias que salen de la vista se reciclan para casillas nuevas (WS.pool = memoria máxima).
+const cellSlot=new Map();let frameNo=0;
+const cellHash=(gx,gy)=>Math.floor(h32(gx,gy,9001)*2147483646);
+function ensureSlots(){if(slots.length>WS.pool){for(const s of slots.splice(WS.pool))if(s.key)cellSlot.delete(s.key)}}
+function resetCells(){slots.length=0;cellSlot.clear();closePick()}
+function slotForCell(key,bio,hash){let sl=cellSlot.get(key);if(sl)return sl;
+  if(slots.length<WS.pool){sl={i:slots.length,g:0,state:"queued"};slots.push(sl)}
+  else{let best=null;for(const s of slots)if(!s.locked&&(s.seen??-1)<frameNo-1&&(!best||(s.seen??-1)<(best.seen??-1)))best=s;if(!best)return null;sl=best;cellSlot.delete(sl.key)}
+  Object.assign(sl,{key,bio,hash,g:(sl.g||0)+1,state:"queued",job:null,jcv:null,s:null,cv:null,ecv:null,thr:null,eimg:null,spec:null,locked:false});cellSlot.set(key,sl);return sl}
 // Los objetos del catálogo se dibujan una sola vez por sesión: si ya existe su sprite, aparece directo.
 const spriteMem=new Map();
 const specKey=sp=>sp.item?(sp.t==="supra"?itemKey(sp.it):itemKey({type:sp.t,rot:sp.rot,params:sp.p})):null;
 function beginAppear(sl,now){beginErase(sl,0);sl.e=1.12;sl.state="appearing";sl.born=now}
-function startBuild(sl,now){sl.spec=specFor(sl.i,sl.g,sl.bio);if(!sl.spec){sl.state="void";return}
+function startBuild(sl,now){sl.spec=specFor(sl.hash,sl.g,sl.bio);if(!sl.spec){sl.state="void";return}
   const k=specKey(sl.spec);if(k&&spriteMem.has(k)){sl.s=spriteMem.get(k);sl.cv=viewCanvas(sl.s);beginAppear(sl,now);return}sl.job=sl.spec.t==="supra"?makeSupraJob(sl.spec.it,WG):makeJob(sl.spec.f,sl.spec.rot,WG);sl.jcv=mk(sl.job.w,sl.job.h);sl.state="building"}
 function paintJob(sl){const ctx=sl.jcv.getContext("2d");if(sl.job.paint)sl.job.paint(ctx,viewCanvas);else ctx.putImageData(viewPreview(sl.job.img),0,0)}
 function finishBuild(sl,now){sl.s=sl.job.finish();{const k=specKey(sl.spec);if(k)spriteMem.set(k,sl.s)}sl.cv=viewCanvas(sl.s);sl.job=null;sl.jcv=null;sl.state="ready";sl.born=now}
@@ -231,7 +238,7 @@ function paintErase(sl){const s=sl.s,src=sl.eview,d=sl.eimg.data,e=Math.max(0,sl
     else{d[o]=src[o];d[o+1]=src[o+1];d[o+2]=src[o+2];d[o+3]=src[o+3]}}
   sl.ecv.getContext("2d").putImageData(sl.eimg,0,0)}
 
-function update(now,dt){ensureSlots();if(isExterior())faunaUpdate(now,dt);
+function update(now,dt){frameNo++;ensureSlots();if(isExterior())faunaUpdate(now,dt);
   let building=slots.filter(s=>s.state==="building").length;
   const order=slots.filter(s=>s.state==="queued").sort((a,b)=>(visible.has(b.i)-visible.has(a.i))||a.i-b.i);
   for(const sl of order){if(building>=WS.par)break;startBuild(sl,now);if(sl.state==="building")building++}
@@ -248,7 +255,7 @@ function update(now,dt){ensureSlots();if(isExterior())faunaUpdate(now,dt);
     for(const sl of slots)if(sl.state==="ready"&&!sl.locked&&(!old||(visible.has(sl.i)-visible.has(old.i))*1e12+(old.born-sl.born)>0))old=sl;
     if(old){beginErase(old);lastRenew=now}}
   update.n=(update.n||0)+1;if(update.n%15===0){const c={ready:0,building:0,erasing:0,queued:0,void:0,appearing:0};slots.forEach(s=>c[s.state]++);
-    $("wcount").textContent=`${c.ready}/${WS.pool} listos`+(c.building?` · ${c.building} dibujando`:"")+(c.erasing?` · ${c.erasing} borrando`:"")+(c.appearing?` · ${c.appearing} apareciendo`:"");
+    $("wcount").textContent=`${c.ready} objetos únicos`+(c.building?` · ${c.building} dibujando`:"")+(c.erasing?` · ${c.erasing} borrando`:"")+(c.appearing?` · ${c.appearing} apareciendo`:"");
     if(c.void===slots.length)$("wcount").textContent="Sin objetos en esta selección";
     $("wgen").textContent="renovados: "+generation}}
 
@@ -280,7 +287,8 @@ const cornerMem=new Map();
 function cornerLevel(cx,cy){const k=cx+","+cy;let v=cornerMem.get(k);
   if(v===undefined){const e=fieldsAt(cx*T,cy*T)[0];v=e<SEA?0:Math.min(12,Math.floor((e-SEA)/LV));cornerMem.set(k,v);if(cornerMem.size>60000)cornerMem.clear()}return v}
 const RAMPS={};const rampOf=m=>RAMPS[m]||(RAMPS[m]=mat(GROUND[m][0],{step:.05,shift:.05}).ramp);
-const LN=(()=>{const l=H2(.35,.75,1);return[.35/l,.75/l,1/l]})();
+let LN=[0,0,1];
+function setLight(deg){const az=deg*Math.PI/180,bx=.35,by=.75,x=bx*Math.cos(az)-by*Math.sin(az),y=bx*Math.sin(az)+by*Math.cos(az),l=H2(x,y,1);LN=[x/l,y/l,1/l]}
 function triNormal(a,b,c){const u=[b[0]-a[0],b[1]-a[1],b[2]-a[2]],v=[c[0]-a[0],c[1]-a[1],c[2]-a[2]],n=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]],l=H2(...n)||1;return n[2]<0?[-n[0]/l,-n[1]/l,-n[2]/l]:[n[0]/l,n[1]/l,n[2]/l]}
 const shadeLv=n=>{const s=n[0]*LN[0]+n[1]*LN[1]+n[2]*LN[2];return s>.795?4:s>.745?3:s>.66?2:1};
 /** Geometría de una baldosa: alturas de esquina, triangulación, normales y centros (en unidades de mundo). */
@@ -331,11 +339,13 @@ function objImage(sl){if(sl.state==="building")return[sl.jcv,sl.job.ox,sl.job.oy
 const DECOR={pradera:["hierba","hierba","flores","flores","arbusto","hierba"],bosque:["hierba","seta","arbusto","hierba","tocon","flores"],desierto:["hierba","roca","roca","cactus"],
   nieve:["roca","hierba","roca"],pantano:["hierba","hierba","seta","hierba"],costa:["hierba","roca","hierba"]};
 const DECOR_CAP={hierba:{blades:12,h:9,spread:5},flores:{n:4,spread:4,h:7},arbusto:{size:.75,n:5},roca:{size:4,n:1},seta:{n:2,size:1},tocon:{r:5,h:5},cactus:{h:16,arms:1}};
-const decorSprites={},decorQ=[];let decorJob=null;
-function decorFor(bio){if(!decorSprites[bio]){decorSprites[bio]=[];const L=DECOR[bio]||[],r=rng(Math.floor(h32(layout,bio.length,77)*2e9)+1);
-    for(let i=0;i<10&&L.length;i++){const t=pickR(r,L),p=genParams(t,r,bio,DECOR_CAP[t]);decorQ.push({bio,t,p,rot:r()<.5?0:1})}}return decorSprites[bio]}
-function pumpDecor(deadline){while(performance.now()<deadline){if(!decorJob){const q=decorQ.shift();if(!q)return;const keep=G;G=WG;decorJob={q,job:makeJob(FURNI[q.t].build(q.p),q.rot,WG)};G=keep}
-  decorJob.job.step(Infinity,deadline);if(decorJob.job.done){const s=decorJob.job.finish();s.cv=spriteCanvas(s);decorSprites[decorJob.q.bio].push(s);decorJob=null}}}
+// Cada baldosa tiene su propia planta (semilla = baldosa): ninguna se repite.
+const decorMem=new Map(),decorQ=[];let decorJob=null;
+function decorAt(tx,ty,bio){const key=tx+","+ty;if(decorMem.has(key))return decorMem.get(key);const L=DECOR[bio]||[];if(!L.length){decorMem.set(key,null);return null}
+  const r=rng(Math.floor(h32(tx,ty,layout+7919+seed)*2147483646)+1);r();const t2=pickR(r,L),p=genParams(t2,r,bio,DECOR_CAP[t2]);decorMem.set(key,null);decorQ.push({key,t:t2,p,rot:r()<.5?0:1});
+  if(decorMem.size>1600){let n=0;for(const k of decorMem.keys()){if(n++>400)break;decorMem.delete(k)}}return null}
+function pumpDecor(deadline){while(performance.now()<deadline){if(!decorJob){const q=decorQ.shift();if(!q)return;if(!decorMem.has(q.key))continue;const keep=G;G=WG;decorJob={q,job:makeJob(FURNI[q.t].build(q.p),q.rot,WG)};G=keep}
+  decorJob.job.step(Infinity,deadline);if(decorJob.job.done){const s=decorJob.job.finish();s.cv=spriteCanvas(s);if(decorMem.has(decorJob.q.key))decorMem.set(decorJob.q.key,s);decorJob=null}}}
 const tileMem=new Map();
 function tileInfo(tx,ty){const k=tx+","+ty;let v=tileMem.get(k);if(!v){const f=fieldsAt((tx+.5)*T,(ty+.5)*T),L=[cornerLevel(tx,ty),cornerLevel(tx+1,ty),cornerLevel(tx+1,ty+1),cornerLevel(tx,ty+1)];
   v={bio:biomeAt(...f),water:f[0]<SEA+.004,flat:L.every(l=>l===L[0])};tileMem.set(k,v);if(tileMem.size>30000)tileMem.clear()}return v}
@@ -345,20 +355,25 @@ function tileInfo(tx,ty){const k=tx+","+ty;let v=tileMem.get(k);if(!v){const f=f
 // completamente detrás (menor x o menor y). Si las huellas se cruzan, el suelo va primero.
 function isoSort(items){const n=items.length,adj=Array.from({length:n},()=>[]),indeg=new Int32Array(n);
   const behind=(a,b)=>a.r[1]<=b.r[0]+1e-6||a.r[3]<=b.r[2]+1e-6;
-  for(let i=0;i<n;i++){const A=items[i];for(let j=i+1;j<n;j++){const B=items[j];
-    if(A.b[0]>=B.b[1]||B.b[0]>=A.b[1]||A.b[2]>=B.b[3]||B.b[2]>=A.b[3])continue;
-    const ab=behind(A,B),ba=behind(B,A);let first;
-    if(ab&&!ba)first=0;else if(ba&&!ab)first=1;
-    else if(A.k===0&&B.k!==0)first=0;else if(B.k===0&&A.k!==0)first=1;
-    else{const da=A.r[0]+A.r[1]+A.r[2]+A.r[3],db=B.r[0]+B.r[1]+B.r[2]+B.r[3];first=da<db-1e-6?0:db<da-1e-6?1:(A.ord||0)<=(B.ord||0)?0:1}
+  // cubetas de 64 px en pantalla: solo se comparan elementos cercanos
+  const B=64,grid=new Map(),seen=new Set();
+  items.forEach((it,i)=>{for(let gx=Math.floor(it.b[0]/B);gx<=Math.floor((it.b[1]-1)/B);gx++)for(let gy=Math.floor(it.b[2]/B);gy<=Math.floor((it.b[3]-1)/B);gy++){const k=gx*65536+gy;let c=grid.get(k);if(!c)grid.set(k,c=[]);c.push(i)}});
+  for(const cell of grid.values())for(let x=0;x<cell.length;x++){const i=cell[x],A=items[i];for(let y=x+1;y<cell.length;y++){const j=cell[y];if(j===i)continue;
+    const pk=Math.min(i,j)*n+Math.max(i,j);if(seen.has(pk))continue;seen.add(pk);const Bt=items[j];
+    if(A.b[0]>=Bt.b[1]||Bt.b[0]>=A.b[1]||A.b[2]>=Bt.b[3]||Bt.b[2]>=A.b[3])continue;
+    const ab=behind(A,Bt),ba=behind(Bt,A);let first;
+    if(ab&&!ba)first=0;else if(ba&&!ab)first=1;else if(A.k===0&&Bt.k!==0)first=0;else if(Bt.k===0&&A.k!==0)first=1;
+    else{const da=A.r[0]+A.r[1]+A.r[2]+A.r[3],db=Bt.r[0]+Bt.r[1]+Bt.r[2]+Bt.r[3];first=da<db-1e-6?0:db<da-1e-6?1:(A.ord||0)<=(Bt.ord||0)?0:1}
     if(first===0){adj[i].push(j);indeg[j]++}else{adj[j].push(i);indeg[i]++}}}
-  const base=items.map((it,i)=>i).sort((a,b)=>(items[a].r[0]+items[a].r[2])-(items[b].r[0]+items[b].r[2])),out=[],used=new Uint8Array(n);
-  let ready=base.filter(i=>!indeg[i]);
-  while(out.length<n){if(!ready.length){const i=base.find(q=>!used[q]);ready=[i];indeg[i]=0}
-    const i=ready.shift();if(used[i])continue;used[i]=1;out.push(items[i]);const nx=[];for(const j of adj[i])if(--indeg[j]===0&&!used[j])nx.push(j);
-    if(nx.length){ready=ready.concat(nx).sort((a,b)=>(items[a].r[0]+items[a].r[2])-(items[b].r[0]+items[b].r[2]))}}
+  // Kahn con montículo por profundidad (estable y sin re-ordenar listas)
+  const key=i=>items[i].r[0]+items[i].r[2]+(items[i].k===0?0:.001),heap=[];
+  const push=i=>{heap.push(i);let c=heap.length-1;while(c){const p=(c-1)>>1;if(key(heap[p])<=key(heap[c]))break;[heap[p],heap[c]]=[heap[c],heap[p]];c=p}};
+  const pop=()=>{const top=heap[0],last=heap.pop();if(heap.length){heap[0]=last;let c=0;for(;;){const l=2*c+1,r=l+1;let m=c;if(l<heap.length&&key(heap[l])<key(heap[m]))m=l;if(r<heap.length&&key(heap[r])<key(heap[m]))m=r;if(m===c)break;[heap[m],heap[c]]=[heap[c],heap[m]];c=m}}return top};
+  for(let i=0;i<n;i++)if(!indeg[i])push(i);const out=[],used=new Uint8Array(n);
+  while(out.length<n){if(!heap.length){let b=-1;for(let i=0;i<n;i++)if(!used[i]&&(b<0||key(i)<key(b)))b=i;indeg[b]=0;push(b)}
+    const i=pop();if(used[i])continue;used[i]=1;out.push(items[i]);for(const j of adj[i])if(--indeg[j]===0&&!used[j])push(j)}
   return out}
-function drawWorld(){const W=low.width,H=low.height,cx=Math.floor(cam.x),cy=Math.floor(cam.y),exterior=isExterior(),gdl=performance.now()+5;
+function drawWorld(){const W=low.width,H=low.height,cx=Math.floor(cam.x),cy=Math.floor(cam.y),exterior=isExterior();
   lctx.fillStyle="#1c1c1c";lctx.fillRect(0,0,W,H);
   const inv=(sx,sy)=>[((sy+cy)/16+(sx+cx)/32)/2,((sy+cy)/16-(sx+cx)/32)/2];
   const cs=[inv(0,-40),inv(W,-40),inv(0,H+200),inv(W,H+200)],CELL=exterior?2:3;
@@ -366,9 +381,9 @@ function drawWorld(){const W=low.width,H=low.height,cx=Math.floor(cam.x),cy=Math
   drawn=[];visible=new Set();const items=[],top=[],occupied=new Set();
   // objetos
   for(let gx=Math.floor(tx0/CELL)-1;gx<=Math.ceil(tx1/CELL);gx++)for(let gy=Math.floor(ty0/CELL)-1;gy<=Math.ceil(ty1/CELL);gy++){
-    if(h32(gx,gy,layout)>WS.dens)continue;let sl;
-    if(exterior&&WS.src==="random"){const ci=cellInfo(gx,gy,CELL),L=slotsByBio[ci.bio]||slots;sl=L[Math.floor(h32(gx,gy,layout+17)*L.length)]}
-    else sl=slots[Math.floor(h32(gx,gy,layout+17)*WS.pool)];if(!sl)continue;
+    if(h32(gx,gy,layout)>WS.dens)continue;
+    const gsx0=32*(gx-gy)*CELL-cx,gsy0=16*(gx+gy)*CELL-cy;if(gsx0<-160||gsx0>W+160||gsy0<-120||gsy0>H+260)continue;
+    const sl=slotForCell(gx+","+gy,exterior?cellInfo(gx,gy,CELL).bio:"interior",cellHash(gx,gy));if(!sl)continue;sl.seen=frameNo;
     {const gsx=32*(gx-gy)*CELL-cx,gsy=16*(gx+gy)*CELL-cy;if(gsx>-120&&gsx<W+120&&gsy>-60&&gsy<H+200)visible.add(sl.i)}
     if(sl.state==="queued"||sl.state==="void")continue;
     const sp=sl.spec,ax=gx*CELL+Math.floor(h32(gx,gy,layout+31)*Math.max(1,CELL-sp.fw+1)),ay=gy*CELL+Math.floor(h32(gx,gy,layout+47)*Math.max(1,CELL-sp.fd+1));
@@ -383,14 +398,17 @@ function drawWorld(){const W=low.width,H=low.height,cx=Math.floor(cam.x),cy=Math
     const key=tx+","+ty,hm=exterior?Math.max(cornerLevel(tx,ty),cornerLevel(tx+1,ty),cornerLevel(tx+1,ty+1),cornerLevel(tx,ty+1))*STEP:0;
     items.push({k:0,tx,ty,sx,sy,key,r:[tx,tx+1,ty,ty+1],b:[sx-32,sx+32,sy-hm,sy+33]});
     if(exterior&&WS.veg>0&&!occupied.has(key)&&h32(tx,ty,layout+101)<WS.veg*.85){const ti=tileInfo(tx,ty);if(ti.water)continue;
-      const L=decorFor(ti.bio);if(!L.length)continue;const s=L[Math.floor(h32(tx,ty,layout+103)*L.length)],u=.2+h32(tx,ty,layout+107)*.6,v=.2+h32(tx,ty,layout+109)*.6,X=(tx+u)*T,Y=(ty+v)*T;
+      const s=decorAt(tx,ty,ti.bio);if(!s)continue;const u=.2+h32(tx,ty,layout+107)*.6,v=.2+h32(tx,ty,layout+109)*.6,X=(tx+u)*T,Y=(ty+v)*T;
       if(fieldsAt(X,Y)[0]<SEA+.006)continue;const g=heightAt(X,Y),X0=X-16,Y0=Y-16,ddx=Math.round(X0-Y0-cx-s.originX),ddy=Math.round((X0+Y0)/2-g-cy-s.originY);
       items.push({k:1,r:[tx+u-.15,tx+u+.15,ty+v-.15,ty+v+.15],b:[ddx,ddx+s.width,ddy,ddy+s.height],draw:()=>lctx.drawImage(s.cv,ddx,ddy)})}}
   if(exterior)faunaItems(items,top,cx,cy);
+  // baldosas que faltan: presupuesto propio (6 ms, mínimo 2 por cuadro), primero las del centro
+  if(exterior){const miss=items.filter(it=>it.k===0&&!terrainCache.has(it.key)).sort((a,b)=>Math.abs(a.sx-W/2)+Math.abs(a.sy-H/2)-Math.abs(b.sx-W/2)-Math.abs(b.sy-H/2));
+    const t0=performance.now();let made=0;for(const it of miss){if(made>=2&&performance.now()-t0>6)break;terrainCache.set(it.key,makeTerrainTile(it.tx,it.ty));made++}
+    if(terrainCache.size>5000)for(const k of[...terrainCache.keys()].slice(0,1200))terrainCache.delete(k)}
   for(const it of isoSort(items)){if(it.draw){it.draw();continue}if(it.k===1){drawObj(it);continue}
     if(!exterior){lctx.drawImage(TILES[WS.check?((it.tx+it.ty)&1):0],it.sx-32,it.sy);continue}
-    let tt=terrainCache.get(it.key);
-    if(!tt&&performance.now()<gdl){tt=makeTerrainTile(it.tx,it.ty);terrainCache.set(it.key,tt);if(terrainCache.size>5000)for(const k of[...terrainCache.keys()].slice(0,1200))terrainCache.delete(k)}
+    const tt=terrainCache.get(it.key);
     if(tt){lctx.drawImage(tt.c,it.sx-32,it.sy-tt.hmax);continue}
     const ph=placeholderTile(it.tx,it.ty);lctx.fillStyle=ph.col;lctx.beginPath();
     [[0,0,0],[1,0,1],[1,1,2],[0,1,3]].forEach(([u,v,i],n)=>{const X=it.sx+32*(u-v),Y=it.sy+16*(u+v)-ph.h[i];n?lctx.lineTo(X,Y):lctx.moveTo(X,Y)});lctx.closePath();lctx.fill()}
@@ -411,9 +429,14 @@ wcv.addEventListener("pointermove",e=>{if(drag){const z=wcv.getBoundingClientRec
 wcv.addEventListener("pointerup",e=>{const d=drag;drag=null;wcv.style.cursor="grab";if(d&&!d.moved){const[lx,ly]=toLow(e),hit=pickAt(lx,ly);if(hit)openPick(hit);else closePick()}});
 function wslider(id,key,fmtv,on){const i=$(id),o=$(id+"V");i.value=WS[key];o.textContent=fmtv(WS[key]);i.addEventListener("input",()=>{WS[key]=+i.value;o.textContent=fmtv(WS[key]);on&&on();save()})}
 wslider("wspeed","speed",v=>v===0?"quieto":"×"+fmt(v));wslider("wzoom","zoom",v=>"×"+v,sizeWorld);
-wslider("wdens","dens",v=>Math.round(v*100)+" %");wslider("wpool","pool",v=>String(v));
+wslider("wdens","dens",v=>Math.round(v*100)+" %");wslider("wpool","pool",v=>v+" únicos");
 wslider("whue","hue",v=>(v>0?"+":"")+v+"°",reView);wslider("walpha","alpha",v=>Math.round(v*100)+" %",reView);
 wslider("wveg","veg",v=>Math.round(v*100)+" %");
+// La luz cambia el sombreado de todo: terreno, objetos, vegetación y fauna se vuelven a dibujar.
+let lightTimer=0;function applyLight(){WG.light=WS.light;setLight(WS.light);terrainCache.clear();decorMem.clear();decorQ.length=0;decorJob=null;
+  faunaSprites.clear();faunaQ.length=0;faunaJob=null;spriteMem.clear();thumbCache.clear();resetWorld()}
+wslider("wlight","light",v=>(v>0?"+":"")+v+"°",()=>{clearTimeout(lightTimer);lightTimer=setTimeout(applyLight,350)});
+WG.light=WS.light;setLight(WS.light);
 wslider("wdraw","draw",v=>Math.round(8*2**(v-1))+" px/cuadro");wslider("wpar","par",v=>String(v));wslider("wevery","every",v=>fmt(v)+" s");
 $("wdir").value=WS.dir;$("wdir").addEventListener("change",e=>{WS.dir=+e.target.value;save()});
 $("wcheck").checked=WS.check;$("wcheck").addEventListener("change",e=>{WS.check=e.target.checked;save()});
@@ -652,11 +675,11 @@ for(const k in SPECIES)if(!(k in WS.species))WS.species[k]=true;
 const faunaSprites=new Map(),faunaQ=[];let faunaJob=null;
 const FS={...gdef(),self:false};
 function faunaKey(sp,v,rot,fr,sub){return sp+"|"+JSON.stringify(v)+"|"+rot+"|"+fr+"|"+(sub?1:0)}
-function faunaSprite(sp,v,rot,fr,sub){const k=faunaKey(sp,v,rot,fr,sub),s=faunaSprites.get(k);if(s)return s;if(!faunaSprites.has(k)){faunaSprites.set(k,null);faunaQ.push({k,sp,v,rot,fr,sub})}return null}
-function pumpFauna(deadline){while(performance.now()<deadline){if(!faunaJob){const q=faunaQ.shift();if(!q)return;
+function faunaSprite(sp,v,rot,fr,sub){const k=faunaKey(sp,v,rot,fr,sub),s=faunaSprites.get(k);if(s)return s;if(!faunaSprites.has(k)){faunaSprites.set(k,null);faunaQ.unshift({k,sp,v,rot,fr,sub})}return null}
+function pumpFauna(deadline){while(performance.now()<deadline){if(!faunaJob){const q=faunaQ.shift();if(!q)return;if(!faunaSprites.has(q.k))continue;
       const p=Object.assign(defaults(q.sp),q.v,{frame:q.fr});if(q.sp==="cocodrilo")p.sub=!!q.sub;const S={...FS,floor:!SPECIES[q.sp].fly&&q.sp!=="pez"&&!q.sub};
       const keep=G;G=S;faunaJob={q,job:makeJob(FURNI[q.sp].build(p),q.rot,S)};G=keep}
-    faunaJob.job.step(Infinity,deadline);if(faunaJob.job.done){const s=faunaJob.job.finish();s.cv=spriteCanvas(s);faunaSprites.set(faunaJob.q.k,s);faunaJob=null}}}
+    faunaJob.job.step(Infinity,deadline);if(faunaJob.job.done){const s=faunaJob.job.finish();s.cv=spriteCanvas(s);if(faunaSprites.has(faunaJob.q.k))faunaSprites.set(faunaJob.q.k,s);faunaJob=null}}}
 // altura del terreno en cualquier punto (misma triangulación que las baldosas)
 function heightAt(X,Y){const tx=Math.floor(X/T),ty=Math.floor(Y/T),u=X/T-tx,v=Y/T-ty,h=[cornerLevel(tx,ty),cornerLevel(tx+1,ty),cornerLevel(tx+1,ty+1),cornerLevel(tx,ty+1)].map(l=>l*STEP);
   if(Math.abs(h[0]-h[2])<=Math.abs(h[1]-h[3]))return u>=v?h[0]+(h[1]-h[0])*u+(h[2]-h[1])*v:h[0]+(h[2]-h[3])*u+(h[3]-h[0])*v;
@@ -667,21 +690,26 @@ function spawnFauna(){if(!view)return;const{W,H,cx,cy}=view;
   let sx=Math.random()*W+cx,sy=Math.random()*(H+40)+cy,X=sy+sx/2,Y=sy-sx/2,f=fieldsAt(X,Y);const water=f[0]<SEA-.004,b=biomeAt(...f);
   const opts=Object.entries(SPECIES).filter(([k,s])=>WS.species[k]&&(s.where==="any"||(s.where==="water")===water)&&s.bio[b]);
   let tot=opts.reduce((a,[,s])=>a+s.bio[b],0);if(!tot)return;let r=Math.random()*tot,sp=opts[0][0];for(const[k,s]of opts)if((r-=s.bio[b])<0){sp=k;break}
-  const V=SPECIES[sp].vars(b),v=V[Math.floor(Math.random()*V.length)],n={sp,v,X,Y,z:0,alt:0,head:Math.random()*Math.PI*2,t:0,timer:0,state:"idle",fr:0,seed:Math.random()*1000,sub:sp==="cocodrilo",born:0,fxCol:water?[170,215,245]:b==="nieve"?[235,242,250]:b==="desierto"?[226,204,150]:[120,170,80]};
+  const V=SPECIES[sp].vars(b),v=individual(sp,V[Math.floor(Math.random()*V.length)]),n={sp,v,X,Y,z:0,alt:0,head:Math.random()*Math.PI*2,t:0,timer:0,state:"idle",fr:0,seed:Math.random()*1000,sub:sp==="cocodrilo",born:0,fxCol:water?[170,215,245]:b==="nieve"?[235,242,250]:b==="desierto"?[226,204,150]:[120,170,80]};
   if(sp==="ave"){// las aves entran volando desde un borde, sin remolino
     const left=Math.random()<.5;sx=(left?-30:W+30)+cx;sy=Math.random()*H*.6+cy;n.X=sy+sx/2;n.Y=sy-sx/2;const dX=(W/2+cx-sx),dY=(H/2+cy-sy);n.head=Math.atan2(dY-dX/2,dY+dX/2)+(Math.random()-.5)*.6;
     n.alt=60+Math.random()*40;n.speed=46+Math.random()*20;n.born=9}
   if(sp==="mariposa")n.alt=8+Math.random()*10;if(sp==="murcielago")n.alt=22+Math.random()*18;if(sp==="topo")n.timer=1+Math.random()*3;if(sp==="insectos")n.alt=4+Math.random()*6;
   fauna.push(n)}
 const FX_IN=.8,FX_OUT=.7;
-function faunaUpdate(now,dt){pumpFauna(performance.now()+2);pumpDecor(performance.now()+2.5);if(!view)return;
+/** Cada criatura es única: tamaño y colores con variación individual (tono, saturación, luz). */
+function individual(sp,base){const p=Object.assign({},base);if(sp==="insectos")return p;const d=defaults(sp),dh=(Math.random()-.5)*36,dl=(Math.random()-.5)*.12;
+  (FURNI[sp].colors||[]).forEach(([k])=>{const c=p[k]||d[k],n=parseInt(c.slice(1),16),[h,s,l]=rgb2hsl(n>>16&255,n>>8&255,n&255);p[k]=hex(hsl2rgb(h+dh+(Math.random()-.5)*10,Math.min(1,Math.max(0,s+(Math.random()-.5)*.15)),Math.min(.95,Math.max(.06,l+dl))))});
+  p.s=+((d.s||1)*(.82+Math.random()*.36)).toFixed(2);return p}
+function dropFaunaSprites(n){const pre=n.sp+"|"+JSON.stringify(n.v)+"|";for(const k of[...faunaSprites.keys()])if(k.startsWith(pre))faunaSprites.delete(k)}
+function faunaUpdate(now,dt){pumpFauna(performance.now()+2);pumpDecor(performance.now()+(decorQ.length>40?5:3));if(!view)return;
   const target=Math.round(WS.fauna*28);if(fauna.filter(n=>n.dying==null).length<target&&Math.random()<.25)spawnFauna();
   let extra=fauna.filter(n=>n.dying==null).length-target;
   const{W,H,cx,cy}=view;
   for(let i=fauna.length-1;i>=0;i--){const n=fauna[i];n.t+=dt;n.born+=dt;
-    const sx=n.X-n.Y-cx,sy=(n.X+n.Y)/2-cy;if(sx<-220||sx>W+220||sy<-280||sy>H+280){fauna.splice(i,1);continue}
+    const sx=n.X-n.Y-cx,sy=(n.X+n.Y)/2-cy;if(sx<-220||sx>W+220||sy<-280||sy>H+280){dropFaunaSprites(n);fauna.splice(i,1);continue}
     if(n.dying==null&&(extra>0||!WS.species[n.sp])){n.dying=0;extra--}
-    if(n.dying!=null){n.dying+=dt;if(n.dying>FX_OUT){fauna.splice(i,1);continue}}
+    if(n.dying!=null){n.dying+=dt;if(n.dying>FX_OUT){dropFaunaSprites(n);fauna.splice(i,1);continue}}
     if(n.born<FX_IN*.55)continue;
     const step=(spd,turn)=>{n.head+=(noise3(n.t*.7,n.seed,0,3)-.5)*turn*dt;return[n.X+Math.cos(n.head)*spd*dt,n.Y+Math.sin(n.head)*spd*dt]};
     switch(n.sp){
@@ -773,7 +801,7 @@ function refreshSrc(){const s=$("wsrc");s.innerHTML="";s.add(new Option("Aleator
   if(![...s.options].some(o=>o.value===WS.src))WS.src="random";s.value=WS.src;
   const L=srcList();$("wsrcNote").textContent=L?(L.length?"Los furnis salen de tu catálogo, con sus colores guardados.":"No hay objetos en esta selección: guarda furnis desde el mundo o el laboratorio."):"La colorimetría se aplica a los furnis aleatorios."}
 {const s=$("wbio");Object.entries(BIOMES).forEach(([k,b])=>s.add(new Option(b.name,k)));if(!BIOMES[WS.bio])WS.bio="interior";s.value=WS.bio;
-  s.addEventListener("change",()=>{WS.bio=s.value;save();resetGround();ensureSlots();resetWorld()})}
+  s.addEventListener("change",()=>{WS.bio=s.value;save();resetGround();resetCells()})}
 $("wcheck").addEventListener("change",resetGround);
 $("wsrc").addEventListener("change",e=>{WS.src=e.target.value;save();refreshSrc();resetWorld()});
 
