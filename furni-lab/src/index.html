@@ -50,7 +50,8 @@
     <div class="controls">
       <div class="pt-layer"><div class="pt-layer__in pad">
         <div class="field"><span>Origen de los furnis</span><div class="pt-input"><select id="wsrc"></select></div></div>
-        <p class="note" id="wsrcNote" style="margin:0"></p>
+        <p class="note" id="wsrcNote" style="margin:0 0 8px"></p>
+        <div class="field"><span>Bioma</span><div class="pt-input"><select id="wbio"></select></div></div>
       </div></div>
       <div class="pt-layer"><div class="pt-layer__in pad">
         <div class="field"><span>Colorimetría</span><div class="pt-input"><select id="wpal"></select></div></div>
@@ -78,7 +79,7 @@
       <div class="pt-layer"><div class="pt-layer__in pad">
         <div class="field"><span>Dirección del recorrido</span><div class="pt-input"><select id="wdir">
           <option value="0">↘ Eje X</option><option value="1">↙ Eje Y</option><option value="2">↓ Diagonal</option><option value="3">→ Horizontal</option></select></div></div>
-        <label class="sw">Piso a cuadros <input type="checkbox" class="pt-toggle" id="wcheck"></label>
+        <label class="sw">Rejilla / cuadros <input type="checkbox" class="pt-toggle" id="wcheck"></label>
       </div></div>
       <div class="pt-layer"><div class="pt-layer__in pad">
         <div class="acts">
@@ -94,6 +95,7 @@
   <section class="view" id="v-laboratorio" hidden>
     <div class="lab">
       <div>
+        <div class="chips cats" id="typeCats" aria-label="Categorías"></div>
         <div class="types" id="types"></div>
         <div class="pt-layer-ring pt-sunken frame"><div class="pt-ring__inner"><div class="pt-ring__face"><div id="stage"><canvas id="view"></canvas></div></div></div></div>
         <div class="bar">
@@ -116,6 +118,29 @@
         </div>
         <div class="note" id="note"></div>
         <div class="thumb"><img id="thumb" class="pt-card" alt="Sprite a tamaño real"><span>Tamaño real. Si la descarga no está disponible aquí: clic derecho sobre esta imagen › Guardar.</span></div>
+        <div class="pt-layer" style="margin-top:16px"><div class="pt-layer__in pad">
+          <h2>Alternativas</h2>
+          <div class="altbar">
+            <div class="field"><span>Variar</span><div class="pt-input"><select id="altMode"><option value="both">Forma y color</option><option value="shape">Solo forma</option><option value="color">Solo color</option></select></div></div>
+            <div class="param"><label for="altAmt">Intensidad</label><span class="pt-exp-param-value" id="altAmtV"></span><input class="pt-exp-param-range" type="range" id="altAmt" min="0.05" max="1" step="0.05" value="0.35"></div>
+            <button class="pt-ring-btn pt-btn--orange" id="altGen"><span class="pt-ring__inner"><span class="pt-ring__face">Generar alternativas</span></span></button>
+          </div>
+          <div class="altgrid" id="altGrid"></div>
+          <p class="note" id="altNote">Genera 8 variaciones del furni actual; haz clic en una para tomarla.</p>
+        </div></div>
+        <div class="pt-layer" style="margin-top:16px"><div class="pt-layer__in pad">
+          <h2>Trasladar colorimetría</h2>
+          <div class="altbar">
+            <button class="pt-btn" id="clipThis">Copiar de este furni</button>
+            <div class="field"><span>…o de un objeto del catálogo</span><div class="pt-input"><select id="clipCat"></select></div></div>
+          </div>
+          <div class="clip" id="clipBox"><span class="note">Todavía no hay colorimetría copiada.</span></div>
+          <div class="altbar">
+            <div class="field"><span>Asignación</span><div class="pt-input"><select id="clipMap"><option value="lum">Por luminosidad (oscuro → oscuro)</option><option value="order">Por orden de las piezas</option></select></div></div>
+            <label class="sw">Solo tono (conservar la luz del destino) <input type="checkbox" class="pt-toggle" id="clipHue"></label>
+            <button class="pt-ring-btn pt-btn--orange" id="clipApply" disabled><span class="pt-ring__inner"><span class="pt-ring__face">Aplicar a este furni</span></span></button>
+          </div>
+        </div></div>
       </div>
       <div class="pt-layer"><div class="pt-layer__in pad">
         <h2 id="ptitle">Parámetros</h2>
@@ -207,6 +232,8 @@
 <script>
 {
 /* @inline src/engine/engine.js */
+/* @inline src/engine/exterior.js */
+/* @inline src/engine/bloques.js */
 /* @inline src/app/app.js */
 }
 </script>

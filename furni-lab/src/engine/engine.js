@@ -32,11 +32,12 @@ function makeJob(f,rot=0,S=G){
   const az=(S.light||0)*Math.PI/180,bx=.35,by=.75,Lx0=bx*Math.cos(az)-by*Math.sin(az),Ly0=bx*Math.sin(az)+by*Math.cos(az),ln=H2(Lx0,Ly0,1),L=[Lx0/ln,Ly0/ln,1/ln];
   const W0=f.footprint[0]*T,D0=f.footprint[1]*T,sw=rot%2===1,W=sw?D0:W0,D=sw?W0:D0;
   const toObj=rot===1?(x,y)=>[y,W-x]:rot===2?(x,y)=>[W0-x,D0-y]:rot===3?(x,y)=>[D-y,x]:(x,y)=>[x,y];
+  const toObjN=rot===1?(x,y)=>[y,-x]:rot===2?(x,y)=>[-x,-y]:rot===3?(x,y)=>[-y,x]:(x,y)=>[x,y];
   const P=f.parts,np=P.length;
   const dist=(x,y,z)=>{const o=toObj(x,y);let d=1e9;for(let i=0;i<np;i++){const e=P[i].sdf(o[0],o[1],z);if(e<d)d=e}return d};
   const partAt=(x,y,z)=>{const o=toObj(x,y);let b=0,bd=1e9;for(let i=0;i<np;i++){const e=P[i].sdf(o[0],o[1],z);if(e<bd){bd=e;b=i}}return b};
-  const Hh=f.height,sl=10,ox=D+sl,oy=Hh+sl,w=W+D+sl*2,h=Math.ceil(Hh+(W+D)/2+sl*2),N=w*h;
-  const hit=new Int16Array(N).fill(-1),dep=new Float32Array(N),nr=new Float32Array(N*3),ps=new Float32Array(N*3),lev=new Int8Array(N),fl=new Uint8Array(N);
+  const Hh=f.height,sl=f.slack||10,ox=D+sl,oy=Hh+sl,w=W+D+sl*2,h=Math.ceil(Hh+(W+D)/2+sl*2),N=w*h;
+  const pm=new Array(N),hit=new Int16Array(N).fill(-1),dep=new Float32Array(N),nr=new Float32Array(N*3),ps=new Float32Array(N*3),lev=new Int8Array(N),fl=new Uint8Array(N);
   const img=new ImageData(w,h),pv=img.data;
   const toLight=(x,y,z)=>{let t=.6;for(let i=0;i<160&&t<140;i++){const d=dist(x+L[0]*t,y+L[1]*t,z+L[2]*t);if(d<.02)return true;t+=Math.max(d*.9,.05)}return false};
   const E=.12;
@@ -48,7 +49,7 @@ function makeJob(f,rot=0,S=G){
     if(!ok){if(S.floor&&x0>-sl&&y0>-sl&&x0<W+sl&&y0<D+sl&&toLight(x0,y0,.01)){fl[k]=1;pv[k*4+3]=70}return}
     const px=x0+t,py=y0+t,pz=t;
     let nx=dist(px+E,py,pz)-dist(px-E,py,pz),ny=dist(px,py+E,pz)-dist(px,py-E,pz),nz=dist(px,py,pz+E)-dist(px,py,pz-E);const nl=H2(nx,ny,nz)||1;nx/=nl;ny/=nl;nz/=nl;
-    const p=partAt(px,py,pz),m=P[p].mat;hit[k]=p;dep[k]=px+py+pz;nr[k*3]=nx;nr[k*3+1]=ny;nr[k*3+2]=nz;ps[k*3]=px;ps[k*3+1]=py;ps[k*3+2]=pz;
+    const p=partAt(px,py,pz);let m=P[p].mat;if(P[p].pick){const o=toObj(px,py),on=toObjN(nx,ny),mm=P[p].pick(o[0],o[1],pz,on[0],on[1],nz);if(mm)m=mm}pm[k]=m;hit[k]=p;dep[k]=px+py+pz;nr[k*3]=nx;nr[k*3+1]=ny;nr[k*3+2]=nz;ps[k*3]=px;ps[k*3+1]=py;ps[k*3+2]=pz;
     const s=nx*L[0]+ny*L[1]+nz*L[2];let lv=s>.74?4:s>.5?3:s>.2?2:1;
     if(S.self&&s>.2&&toLight(px+nx*.5,py+ny*.5,pz+nz*.5))lv=Math.max(1,lv-2);
     if(m.pattern){const o=toObj(px,py);lv=Math.max(1,Math.min(4,lv+Math.round(m.pattern(o[0],o[1],pz))))}
@@ -72,7 +73,7 @@ function makeJob(f,rot=0,S=G){
   const px=new Uint8ClampedArray(N*4),mk8=new Uint8Array(N),IA=Math.round(Math.min(1,Math.max(0,S.alpha??1))*255),put=(k,c,a=255)=>{px[k*4]=c[0];px[k*4+1]=c[1];px[k*4+2]=c[2];px[k*4+3]=a};
   // máscara: 1 = contorno, 2 = interior (0 = vacío o sombra)
   for(let k=0;k<N;k++){if(oo[k]>=0&&S.outline!=="none"){put(k,P[oo[k]].mat.outline);mk8[k]=1;continue}
-    if(hit[k]>=0){const m=P[hit[k]].mat;put(k,m.ramp[cr[k]>=0?cr[k]:lev[k]],IA);mk8[k]=2;continue}if(fl[k])put(k,[0,0,0],70)}
+    if(hit[k]>=0){const m=pm[k];put(k,m.ramp[cr[k]>=0?cr[k]:lev[k]],IA);mk8[k]=2;continue}if(fl[k])put(k,[0,0,0],70)}
   let a=w,b=h,c=-1,d=-1;for(let j=0;j<h;j++)for(let i=0;i<w;i++)if(px[(j*w+i)*4+3]){a=Math.min(a,i);c=Math.max(c,i);b=Math.min(b,j);d=Math.max(d,j)}
   if(c<0){a=b=0;c=d=1}a--;b--;c++;d++;const cw=c-a+1,ch=d-b+1,out=new Uint8ClampedArray(cw*ch*4),mask=new Uint8Array(cw*ch);
   for(let j=0;j<ch;j++)for(let i=0;i<cw;i++){const si=j+b,sj=i+a;if(si<0||sj<0||si>=h||sj>=w)continue;out.set(px.subarray((si*w+sj)*4,(si*w+sj)*4+4),(j*cw+i)*4);mask[j*cw+i]=mk8[si*w+sj]}
@@ -175,3 +176,4 @@ FURNI.planta.stack=p=>p.potH;
 FURNI.estante.stack=p=>p.h;
 FURNI.cama.stack=p=>p.mh+(p.cover>0?1.2:0);
 FURNI.alfombra.stack=p=>p.th+(p.bw>0||p.pattern!=="none"?.5:0);
+

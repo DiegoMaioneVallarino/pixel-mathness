@@ -14,7 +14,7 @@ const PRESETS={marca:["#0894ff","#c959dd","#ff2e54","#ff9004","#0066ff","#ff3fcd
   atardecer:["#ff5e5b","#ff9e44","#ffd166","#8a4fc4","#3d2c8d","#ef476f"],bosque:["#2f5d3a","#6b8f4e","#a3b18a","#8b5e34","#d4a373","#3a4a3f"],
   oceano:["#023e8a","#0077b6","#00b4d8","#90e0ef","#caf0f8","#03045e"],mono:["#151515","#4c4c4c","#707070","#999999","#c9c9c9","#f2f2f2"]};
 const PRESET_NAMES=[["marca","Marca Pairtial"],["pastel","Pastel"],["atardecer","Atardecer"],["bosque","Bosque"],["oceano","Océano"],["mono","Monocromo"],["custom","Personalizada"]];
-const WS=Object.assign({speed:2,zoom:innerWidth<600?2:3,dens:.6,pool:28,dir:0,check:false,draw:5,par:3,every:2.5,renew:true,src:"random",pal:"marca",palette:PRESETS.marca.slice(),palAll:false,hue:0,alpha:1},store.W||{});
+const WS=Object.assign({speed:2,zoom:innerWidth<600?2:3,dens:.6,pool:28,dir:0,check:false,draw:5,par:3,every:2.5,renew:true,src:"random",pal:"marca",palette:PRESETS.marca.slice(),palAll:false,hue:0,alpha:1,bio:"mixto"},store.W||{});
 if(!Array.isArray(WS.palette)||WS.palette.length!==6||!WS.palette.every(c=>/^#[0-9a-f]{6}$/i.test(c)))WS.palette=PRESETS.marca.slice();
 if(!PRESET_NAMES.some(p=>p[0]===WS.pal))WS.pal="marca";
 const save=()=>{try{localStorage.setItem("furnilab2",JSON.stringify({type,G,P:allP,W:WS}))}catch(e){}};
@@ -40,8 +40,14 @@ function toggle(host,[k,lab],obj,on){const l=document.createElement("label");l.c
 function select(host,[k,lab,opts],obj,on){const d=document.createElement("div");d.className="field";
   d.innerHTML=`<span>${esc(lab)}</span><div class="pt-input"><select>${opts.map(([v,t])=>`<option value="${v}">${esc(t)}</option>`).join("")}</select></div>`;
   const s=d.querySelector("select");s.value=obj[k];s.addEventListener("change",()=>{obj[k]=s.value;on()});host.appendChild(d)}
-function buildPanel(){P=allP[type];const f=FURNI[type];$("ptitle").textContent="Parámetros · "+f.name;
-  const h=$("params");h.innerHTML="";(f.params||[]).forEach(a=>slider(h,a,P,schedule));(f.selects||[]).forEach(a=>select(h,a,P,schedule));(f.toggles||[]).forEach(a=>toggle(h,a,P,schedule));
+const CATS=[["interior","Interior"],["arboles","Árboles"],["vegetacion","Vegetación"],["rocas","Rocas y relieve"],["vallas","Vallas y muros"],["exterior","Estructuras"],["granja","Granja"],["bloques","Bloques"],["construcciones","Construcciones"]];
+let curCat=(FURNI[type]&&FURNI[type].cat)||"interior";
+function buildCats(){const h=$("typeCats");h.innerHTML="";CATS.forEach(([k,n])=>{const b=document.createElement("button");b.className="chip";
+  b.textContent=`${n} · ${Object.values(FURNI).filter(f=>f.cat===k).length}`;b.setAttribute("aria-pressed",k===curCat);
+  b.addEventListener("click",()=>{curCat=k;buildCats();filterTypes()});h.appendChild(b)})}
+function filterTypes(){document.querySelectorAll("#types button").forEach(b=>b.hidden=FURNI[b.dataset.t].cat!==curCat)}
+function buildPanel(){P=allP[type];const f=FURNI[type];if(f.cat&&f.cat!==curCat){curCat=f.cat}buildCats();filterTypes();$("ptitle").textContent="Parámetros · "+f.name;
+  const h=$("params");h.innerHTML="";(f.params||[]).forEach(a=>slider(h,a,P,schedule));(f.selects||[]).forEach(a=>select(h,a,P,()=>{if(f.onSelect){f.onSelect(a[0],P[a[0]],P);buildPanel()}schedule()}));(f.toggles||[]).forEach(a=>toggle(h,a,P,schedule));
   const c=$("colors");c.innerHTML="";(f.colors||[]).forEach(([k,lab])=>{const l=document.createElement("label");l.className="pt-ring color";
     l.innerHTML=`<span class="pt-ring__inner"><span class="pt-ring__face"><input type="color"><span>${esc(lab)}</span></span></span>`;const i=l.querySelector("input");i.value=P[k];
     i.addEventListener("input",()=>{P[k]=i.value;schedule()});c.appendChild(l)});
@@ -97,15 +103,57 @@ const PAL={fabric:["#0894ff","#c959dd","#ff2e54","#ff9004","#0066ff","#ff3fcd","
   pot:["#c9643b","#e0e0e8","#2c2c2c","#0894ff","#ff9004","#c959dd"],leaf:["#3f9e3a","#2f8a54","#6cae3a","#1f7a6a"],
   shade:["#f3c64a","#82d7ff","#ff93f4","#fad07d","#ffffff"]};
 const ROLE={mesa:{c1:"wood",c2:"wood"},silla:{c1:"wood",c2:"fabric"},sofa:{c1:"fabric",c2:"wood"},lampara:{c1:"shade",c2:"metal"},planta:{c1:"leaf",c2:"pot",c3:"wood"},estante:{c1:"wood",c2:"fabric",c3:"fabric",c4:"fabric"},
-  cama:{c1:"wood",c2:"light",c3:"fabric",c4:"light"},alfombra:{c1:"fabric",c2:"fabric",c3:"fabric"}};
+  cama:{c1:"wood",c2:"light",c3:"fabric",c4:"light"},alfombra:{c1:"fabric",c2:"fabric",c3:"fabric"},
+  arbol:{c1:"bark",c2:"leaf"},arbol_muerto:{c1:"bark"},pino:{c1:"bark",c2:"conifer"},palmera:{c1:"palmbark",c2:"palm",c3:"bark"},tocon:{c1:"bark",c2:"cutwood"},tronco:{c1:"bark",c2:"cutwood",c3:"moss"},
+  arbusto:{c1:"leaf",c2:"flower"},seto:{c1:"leaf",c2:"flower"},hierba:{c1:"grass",c2:"spike"},flores:{c1:"grass",c2:"flower",c3:"center"},seta:{c1:"light",c2:"flower",c3:"light"},cactus:{c1:"cactus",c2:"flower"},
+  roca:{c1:"rock",c2:"moss",c3:"ore"},cristales:{c1:"crystal",c2:"rock"},bloque:{c1:"grass",c2:"dirt",c3:"rock"},valla:{c1:"wood"},muro:{c1:"stone",c2:"mortar"},empalizada:{c1:"wood"},
+  banco:{c1:"wood",c2:"metal"},farola:{c1:"darkmetal",c2:"lamp"},letrero:{c1:"wood",c2:"cutwood"},barril:{c1:"wood",c2:"darkmetal"},caja:{c1:"cutwood",c2:"wood"},hoguera:{c1:"bark",c2:"rock"},
+  lena:{c1:"bark",c2:"cutwood"},pozo:{c1:"stone",c2:"wood",c3:"fabric",c4:"water"},tienda:{c1:"fabric",c2:"wood"},fuente:{c1:"stone",c2:"water"},cultivo:{c1:"dirt",c2:"leaf",c3:"flower"},pajar:{c1:"hay",c2:"wood"}};
+// Paletas naturales por defecto (cada bioma puede sobrescribirlas)
+const NAT={bark:["#6b4a2f","#5a3d26","#7a5535","#4a3426"],palmbark:["#8a6a45","#9a7a52"],leaf:["#4f9e3a","#3f8a34","#6cae3a","#2f7a4a"],conifer:["#2f6b3f","#25593a","#3a7a4a"],palm:["#5fa83a","#4f9a3a","#6cb84a"],
+  cutwood:["#d9b07a","#c99a63","#e0bd8a"],grass:["#5fae3a","#4f9e3a","#7cbf4a"],spike:["#c9a85a","#a8874a"],center:["#ffd23f","#ff9004","#ffffff"],cactus:["#4f8f3a","#5c9e48","#3f7a34"],
+  rock:["#8a8f96","#7d7a74","#9a9590","#6f747a"],stone:["#9a9590","#c9c4b8","#8a8f96"],moss:["#5f8f3a","#6b9a3f"],ore:["#ffd23f","#00c4ff","#ff3fcd","#ff9004"],dirt:["#8b5e34","#7a5230"],
+  mortar:["#5f5a55","#4c4c4c"],hay:["#e0b84a","#d4a83f"],water:["#4aa8e0","#3f9ad4"],darkmetal:["#2c2c2c","#4c4c4c","#3a3f44"],lamp:["#ffd27a","#fff1a8","#82d7ff"]};
+const INTERIOR_W={silla:4,planta:4,mesa:3,sofa:3,lampara:2,estante:2,cama:2,alfombra:3};
+const roofs=["#a33b2f","#7a3b2f","#3a4a6a","#5a4a3a","#2f5a4a","#6b2f4a"];NAT.roof=roofs;
+const walls=(t,p,m)=>{if(["casa","torre","muralla"].includes(t)&&FURNI[t].onSelect)FURNI[t].onSelect("m",m,p)};
+const BIOMES={
+  mixto:{name:"Mixto (zonas de todos los biomas)"},
+  interior:{name:"Interior (piso plata)",w:INTERIOR_W},
+  pradera:{name:"Pradera",main:"grass",patch:"dirt",patchT:.14,shore:"sand",
+    w:{arbol:4,arbusto:4,hierba:7,flores:6,roca:2,valla:2,muro:1,banco:1,farola:1,letrero:1,cultivo:2,pajar:1.5,tronco:1,tocon:1,seta:1,pozo:.6,fuente:.4,seto:1.2,casa:1.4,torre:.4,muralla:.5}},
+  bosque:{name:"Bosque",main:"grassDark",patch:"dirt",patchT:.18,shore:"dirt",
+    w:{pino:6,arbol:4,arbol_muerto:1,tocon:2,tronco:2,seta:3,arbusto:3,hierba:4,flores:1,roca:3,hoguera:.8,lena:1,tienda:.8,empalizada:.6,casa:.7,torre:.4},
+    pal:{leaf:["#3f7a34","#2f6a30","#4f8a3a","#5a8f2f"],grass:["#3f7a34","#4b8a3e","#5a9a42"]},tweak:(t,p)=>walls(t,p,"madera")},
+  desierto:{name:"Desierto",main:"sand",patch:"rock",patchT:.15,shore:"sand",
+    w:{cactus:7,palmera:1.5,roca:5,cristales:1,arbol_muerto:2,hierba:2,barril:1,caja:1,tienda:1,hoguera:.5,casa:.8,torre:.6,muralla:.4},
+    pal:{grass:["#c9b86a","#b8a85a","#d4c27a"],leaf:["#8a9a4a","#9aa85a"],rock:["#c98f55","#b07a45","#d9a86a"],dirt:["#d9b07a","#c99a63"],bark:["#8a6a45","#7a5a3a"],roof:["#c98f55","#a8703f"]},
+    tweak:(t,p)=>{if(t==="roca")p.moss=0;walls(t,p,"arena");if(t==="casa")p.roof="plano"}},
+  nieve:{name:"Nieve",main:"snow",patch:"rock",patchT:.06,shore:"ice",
+    w:{pino:7,roca:4,arbol_muerto:2,tronco:1,cristales:2,hoguera:1,lena:2,valla:1,tienda:.7,empalizada:.6,casa:.9,torre:.4},
+    pal:{conifer:["#1f4a35","#2a5a40","#24503a"],rock:["#9aa3ad","#b5bcc4","#8a939d"]},tweak:(t,p)=>{if("snow"in p)p.snow=true;walls(t,p,"madera")}},
+  pantano:{name:"Pantano",main:"grassDark",patch:"mud",patchT:.4,shore:"mud",
+    w:{arbol:3,arbol_muerto:3,hierba:7,seta:4,tronco:2,roca:1,tocon:2,arbusto:1,casa:.4},
+    pal:{leaf:["#5a7a3a","#4a6a35","#6a7a3f"],grass:["#6a7a3a","#5a6a35","#7a8a45"],bark:["#4a3f2f","#3f352a"]},
+    tweak:(t,p)=>{if(t==="arbol")p.droop=Math.max(p.droop,.65);if(t==="hierba"){p.spike=true;p.h=Math.max(p.h,14);p.bend=Math.min(p.bend,.3)}walls(t,p,"madera")}},
+  costa:{name:"Costa",main:"sand",patch:"grass",patchT:.25,shore:"sand",
+    w:{palmera:6,roca:4,barril:2,caja:2,hierba:3,banco:.6,farola:.6,hoguera:.6,tienda:.6,casa:.6,torre:.3},
+    pal:{rock:["#b5ab9a","#9a9080","#c9c0b0"]},tweak:(t,p)=>walls(t,p,"madera")}};
+const MIX=["pradera","bosque","desierto","nieve","pantano","costa"];
+const GROUND={grass:["#5fae3a","#529e33","#6ebd47"],grassDark:["#3f7a34","#376c2f","#4b8a3e"],dirt:["#8b6a48","#7c5d3f","#9a7754"],sand:["#e6cf8f","#d8bf7e","#f0dca2"],
+  snow:["#eef3f8","#dde6ef","#ffffff"],ice:["#bfe0f2","#a9d2ea","#d6eef9"],mud:["#5e4a35","#523f2d","#6b5640"],water:["#3f8fd0","#357fbf","#6cb6e6"],rock:["#8a8f96","#7b8087","#989da4"]};
 const WEIGHT=[["silla",4],["planta",4],["mesa",3],["sofa",3],["lampara",2],["estante",2],["cama",2],["alfombra",3]];
-const CAP={mesa:{w:2,d:1},sofa:{n:2},estante:{n:1,h:64},lampara:{h:58},planta:{size:1.3},cama:{n:2},alfombra:{w:2,d:2}};
+const CAP={mesa:{w:2,d:1},sofa:{n:2},estante:{n:1,h:64},lampara:{h:58},planta:{size:1.3},cama:{n:2},alfombra:{w:2,d:2},
+  bloque:{w:2,d:2},valla:{n:2},muro:{n:2},empalizada:{n:2},seto:{n:2},banco:{n:2},tienda:{w:2},cultivo:{w:2,d:2},fuente:{n:1},farola:{h:64},pino:{h:80},arbol:{spread:60},arbol_muerto:{spread:55},hierba:{blades:28},torre:{n:2,floors:4},casa:{w:2,d:2},muralla:{n:2},bloquem:{w:2,d:2},rampa:{w:2,d:2}};
 const mixHex=(a,b,k)=>{const A=parseInt(a.slice(1),16),B=parseInt(b.slice(1),16);return hex([16,8,0].map(s=>Math.round(((A>>s)&255)*(1-k)+((B>>s)&255)*k)))};
 // Colorimetría del usuario: decide qué colores puede usar cada rol de material.
-function palFor(role){const U=WS.palette;
+let curBio=null;
+function palFor(role){const U=WS.palette,B=(BIOMES[curBio||WS.bio]||{}).pal||{};
   switch(role){case"fabric":case"pot":return U;case"shade":return U.map(c=>mixHex(c,"#ffffff",.35));case"light":return U.map(c=>mixHex(c,"#ffffff",.78));
     case"wood":return WS.palAll?U.map(c=>mixHex(c,"#000000",.3)):PAL.wood;case"metal":return WS.palAll?U.map(c=>mixHex(c,"#9aa3ad",.3)):PAL.metal;
-    case"leaf":return WS.palAll?U:PAL.leaf;default:return U}}
+    case"leaf":return WS.palAll?U:B.leaf||PAL.leaf;case"flower":case"crystal":return U;
+    default:if(WS.palAll&&["conifer","palm","grass","cactus","moss"].includes(role))return U;if(WS.palAll&&["bark","palmbark","cutwood","dirt","hay"].includes(role))return U.map(c=>mixHex(c,"#000000",.3));
+      return B[role]||NAT[role]||U}}
 const SPECTRUM=[[8,148,255],[201,89,221],[255,46,84],[255,144,4]]; // --pt-grad-brand
 const spectrum=u=>{const x=Math.min(.999,Math.max(0,u))*3,i=Math.floor(x),f=x-i,a=SPECTRUM[i],b=SPECTRUM[i+1];return[0,1,2].map(c=>Math.round(a[c]+(b[c]-a[c])*f))};
 const BAYER=[0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5];
@@ -117,24 +165,36 @@ const mk=(w,h)=>{const c=document.createElement("canvas");c.width=w;c.height=h;r
 
 // Una "ranura" de la variedad: en cola → construyendo → lista → borrando → en cola (nueva semilla)
 function srcList(){if(WS.src==="cat")return cat.items;if(String(WS.src).startsWith("fam:")){const id=WS.src.slice(4);return cat.items.filter(x=>x.families.includes(id))}return null}
-function specFor(i,g){const r=rng(Math.floor(h32(seed,i,g)*2147483646)+1);r();
+function specFor(i,g,bio){const r=rng(Math.floor(h32(seed,i,g)*2147483646)+1);r();
   const list=srcList();
   if(list){if(!list.length)return null;const it=list[Math.floor(r()*list.length)];
     if(it.type==="supra"){const[fw,fd]=supraFoot(it);return{t:"supra",it:JSON.parse(JSON.stringify(it)),p:null,rot:it.rot,fw,fd,item:it.id,name:it.name}}
     const keep=G;G=WG;const f=FURNI[it.type].build(it.params);G=keep;
     return{t:it.type,p:JSON.parse(JSON.stringify(it.params)),rot:it.rot,f,fw:it.rot%2?f.footprint[1]:f.footprint[0],fd:it.rot%2?f.footprint[0]:f.footprint[1],item:it.id,name:it.name}}
-  let tot=WEIGHT.reduce((a,w)=>a+w[1],0),pick=r()*tot,t=WEIGHT[0][0];for(const[k,w]of WEIGHT){if((pick-=w)<0){t=k;break}}
+  const BIO=BIOMES[bio]&&BIOMES[bio].w?BIOMES[bio]:BIOMES.interior;curBio=bio;
+  const WT=Object.entries(BIO.w).filter(([k])=>FURNI[k]);
+  let tot=WT.reduce((a,w)=>a+w[1],0),pick=r()*tot,t=WT[0][0];for(const[k,w]of WT){if((pick-=w)<0){t=k;break}}
   const p=randomize(t,defaults(t),r),cap=CAP[t]||{};for(const k in cap)p[k]=Math.min(p[k],cap[k]);
+  if(FURNI[t].onSelect)(FURNI[t].selects||[]).forEach(([k])=>FURNI[t].onSelect(k,p[k],p));
   if(t==="silla")p.slats=Math.min(p.slats,5);if(t==="planta"||t==="estante")p.seed=(r()*500|0)+1;
   const used=new Set();for(const[k,role]of Object.entries(ROLE[t]||{})){const L=palFor(role);let j=Math.floor(r()*L.length);
     if(role==="fabric")for(let n=0;n<L.length&&used.has(L[j]);n++)j=(j+1)%L.length;p[k]=L[j];used.add(L[j])}
   if(t==="lampara")p.glow=r()<.8;
+  if(BIO.tweak)BIO.tweak(t,p,r);curBio=null;
   const rr=r()<.5?0:1,keep=G;G=WG;const f=FURNI[t].build(p);G=keep;
   return{t,p,rot:rr,f,fw:rr%2?f.footprint[1]:f.footprint[0],fd:rr%2?f.footprint[0]:f.footprint[1]}}
-function ensureSlots(){while(slots.length<WS.pool)slots.push({i:slots.length,g:0,state:"queued"});slots.length=WS.pool}
-function startBuild(sl){sl.spec=specFor(sl.i,sl.g);if(!sl.spec){sl.state="void";return}sl.job=sl.spec.t==="supra"?makeSupraJob(sl.spec.it,WG):makeJob(sl.spec.f,sl.spec.rot,WG);sl.jcv=mk(sl.job.w,sl.job.h);sl.state="building"}
+// En modo mixto cada ranura pertenece a un bioma; cada zona del mundo elige entre las ranuras de su bioma.
+let slotsByBio={};
+function ensureSlots(){while(slots.length<WS.pool)slots.push({i:slots.length,g:0,state:"queued"});slots.length=WS.pool;slotsByBio={};
+  slots.forEach((s,i)=>{s.bio=WS.bio==="mixto"?MIX[i%MIX.length]:WS.bio;(slotsByBio[s.bio]=slotsByBio[s.bio]||[]).push(s)})}
+// Los objetos del catálogo se dibujan una sola vez por sesión: si ya existe su sprite, aparece directo.
+const spriteMem=new Map();
+const specKey=sp=>sp.item?(sp.t==="supra"?itemKey(sp.it):itemKey({type:sp.t,rot:sp.rot,params:sp.p})):null;
+function beginAppear(sl,now){beginErase(sl,0);sl.e=1.12;sl.state="appearing";sl.born=now}
+function startBuild(sl,now){sl.spec=specFor(sl.i,sl.g,sl.bio);if(!sl.spec){sl.state="void";return}
+  const k=specKey(sl.spec);if(k&&spriteMem.has(k)){sl.s=spriteMem.get(k);sl.cv=viewCanvas(sl.s);beginAppear(sl,now);return}sl.job=sl.spec.t==="supra"?makeSupraJob(sl.spec.it,WG):makeJob(sl.spec.f,sl.spec.rot,WG);sl.jcv=mk(sl.job.w,sl.job.h);sl.state="building"}
 function paintJob(sl){const ctx=sl.jcv.getContext("2d");if(sl.job.paint)sl.job.paint(ctx,viewCanvas);else ctx.putImageData(viewPreview(sl.job.img),0,0)}
-function finishBuild(sl,now){sl.s=sl.job.finish();sl.cv=viewCanvas(sl.s);sl.job=null;sl.jcv=null;sl.state="ready";sl.born=now}
+function finishBuild(sl,now){sl.s=sl.job.finish();{const k=specKey(sl.spec);if(k)spriteMem.set(k,sl.s)}sl.cv=viewCanvas(sl.s);sl.job=null;sl.jcv=null;sl.state="ready";sl.born=now}
 function beginErase(sl,delay=0){const s=sl.s,n=s.width*s.height,thr=new Float32Array(n);
   for(let y=0;y<s.height;y++)for(let x=0;x<s.width;x++)thr[y*s.width+x]=BAYER[(y&3)*4+(x&3)]/16*.55+(y/s.height)*.45;
   sl.thr=thr;sl.eview=viewRGBA(s);sl.eimg=new ImageData(s.width,s.height);sl.ecv=mk(s.width,s.height);sl.e=-delay;sl.state="erasing"}
@@ -148,20 +208,21 @@ function paintErase(sl){const s=sl.s,src=sl.eview,d=sl.eimg.data,e=Math.max(0,sl
 function update(now,dt){ensureSlots();
   let building=slots.filter(s=>s.state==="building").length;
   const order=slots.filter(s=>s.state==="queued").sort((a,b)=>(visible.has(b.i)-visible.has(a.i))||a.i-b.i);
-  for(const sl of order){if(building>=WS.par)break;startBuild(sl);if(sl.state==="building")building++}
+  for(const sl of order){if(building>=WS.par)break;startBuild(sl,now);if(sl.state==="building")building++}
   // presupuesto: 6 ms por cuadro repartidos entre las construcciones activas
   const deadline=performance.now()+6,ppf=Math.round(8*2**(WS.draw-1));
   for(const sl of slots){if(sl.state!=="building")continue;
     const n=sl.job.step(ppf,deadline);if(n)paintJob(sl);
     if(sl.job.done)finishBuild(sl,now);if(performance.now()>deadline)break}
+  for(const sl of slots){if(sl.state!=="appearing")continue;sl.e-=dt/.7;if(sl.e<=0){sl.state="ready";sl.thr=sl.eimg=sl.ecv=null}else paintErase(sl)}
   for(const sl of slots){if(sl.state!=="erasing")continue;sl.e+=dt/.9;
     if(sl.e>=1+.12){sl.state="queued";sl.g++;generation++;sl.s=sl.cv=sl.ecv=sl.thr=sl.eimg=null}else if(sl.e>0)paintErase(sl)}
   const queued=slots.some(s=>s.state==="queued"&&visible.has(s.i));
   if(WS.renew&&!queued&&building<WS.par&&now-lastRenew>WS.every*1000){let old=null;
     for(const sl of slots)if(sl.state==="ready"&&!sl.locked&&(!old||(visible.has(sl.i)-visible.has(old.i))*1e12+(old.born-sl.born)>0))old=sl;
     if(old){beginErase(old);lastRenew=now}}
-  update.n=(update.n||0)+1;if(update.n%15===0){const c={ready:0,building:0,erasing:0,queued:0,void:0};slots.forEach(s=>c[s.state]++);
-    $("wcount").textContent=`${c.ready}/${WS.pool} listos`+(c.building?` · ${c.building} dibujando`:"")+(c.erasing?` · ${c.erasing} borrando`:"");
+  update.n=(update.n||0)+1;if(update.n%15===0){const c={ready:0,building:0,erasing:0,queued:0,void:0,appearing:0};slots.forEach(s=>c[s.state]++);
+    $("wcount").textContent=`${c.ready}/${WS.pool} listos`+(c.building?` · ${c.building} dibujando`:"")+(c.erasing?` · ${c.erasing} borrando`:"")+(c.appearing?` · ${c.appearing} apareciendo`:"");
     if(c.void===slots.length)$("wcount").textContent="Sin objetos en esta selección";
     $("wgen").textContent="renovados: "+generation}}
 
@@ -171,32 +232,106 @@ function floorTile(base,dark){const c=mk(64,33),g=c.getContext("2d"),img=g.creat
     const col=x>=31||y>=31?dark:base,k=(j*64+i)*4;d[k]=col[0];d[k+1]=col[1];d[k+2]=col[2];d[k+3]=255}
   g.putImageData(img,0,0);return c}
 const TILES=[floorTile([222,222,222],[196,196,196]),floorTile([208,208,208],[186,186,186])];
-const CELL=3;
 function sizeWorld(){const box=$("worldBox"),z=WS.zoom,w=Math.max(1,Math.ceil(box.clientWidth/z)),h=Math.max(1,Math.ceil(box.clientHeight/z));
   if(low.width!==w||low.height!==h){low.width=w;low.height=h}wcv.width=w*z;wcv.height=h*z;wcv.style.width=w*z+"px";wcv.style.height=h*z+"px"}
 new ResizeObserver(()=>{if(current==="mundo")sizeWorld()}).observe($("worldBox"));
-function drawWorld(){const W=low.width,H=low.height,cx=Math.floor(cam.x),cy=Math.floor(cam.y);
+// ===================== SUELO PROCEDURAL (biomas) ====================
+// Material por ruido de baja frecuencia (con distorsión) → transiciones naturales sin autotiling.
+// ======================= TERRENO CON ALTURAS ========================
+// Altura por ESQUINA, cuantizada a semibloques de 8 px. Las baldosas vecinas comparten esquinas,
+// así que los desniveles siempre son pendientes planas en diagonal (nunca escalones ni curvas).
+const STEP=8,SEA=.36,LV=.085,BEACH=.035;
+const isExterior=()=>WS.bio!=="interior";
+const c01x=v=>Math.min(1,Math.max(0,v));
+function fieldsAt(X,Y){const w=noise3(X/150,Y/150,0,layout+3);
+  return[c01x((.78*noise3(X/380+w*.7,Y/380,0,layout+1)+.22*noise3(X/170,Y/170,0,layout+2)-.5)*2.5+.5),
+    c01x((noise3(X/520,Y/520,0,layout+11)-.5)*2.6+.5),c01x((noise3(X/440+5,Y/440,0,layout+12)-.5)*2.6+.5)]}
+function climate(t,h){if(WS.bio!=="mixto")return WS.bio;if(t<.24)return"nieve";if(t>.7&&h<.5)return"desierto";if(h>.7&&t>.4)return"pantano";if(h>.52)return"bosque";return"pradera"}
+function biomeAt(e,t,h){const b=climate(t,h);if(e<SEA+BEACH&&WS.bio==="mixto")return b==="nieve"||b==="pantano"?b:"costa";return b}
+function surfaceOf(e,t,h,d){if(e<SEA)return"water";const b=climate(t,h),B=BIOMES[b];
+  if(e<SEA+BEACH)return WS.bio==="mixto"?(b==="nieve"?"ice":b==="pantano"?"mud":"sand"):B.shore;return d<B.patchT?B.patch:B.main}
+const cornerMem=new Map();
+function cornerLevel(cx,cy){const k=cx+","+cy;let v=cornerMem.get(k);
+  if(v===undefined){const e=fieldsAt(cx*T,cy*T)[0];v=e<SEA?0:Math.min(12,Math.floor((e-SEA)/LV));cornerMem.set(k,v);if(cornerMem.size>60000)cornerMem.clear()}return v}
+const RAMPS={};const rampOf=m=>RAMPS[m]||(RAMPS[m]=mat(GROUND[m][0],{step:.05,shift:.05}).ramp);
+const LN=(()=>{const l=H2(.35,.75,1);return[.35/l,.75/l,1/l]})();
+function triNormal(a,b,c){const u=[b[0]-a[0],b[1]-a[1],b[2]-a[2]],v=[c[0]-a[0],c[1]-a[1],c[2]-a[2]],n=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]],l=H2(...n)||1;return n[2]<0?[-n[0]/l,-n[1]/l,-n[2]/l]:[n[0]/l,n[1]/l,n[2]/l]}
+const shadeLv=n=>{const s=n[0]*LN[0]+n[1]*LN[1]+n[2]*LN[2];return s>.795?4:s>.745?3:s>.66?2:1};
+/** Geometría de una baldosa: alturas de esquina, triangulación, normales y centros (en unidades de mundo). */
+function tileGeom(tx,ty){const h=[cornerLevel(tx,ty),cornerLevel(tx+1,ty),cornerLevel(tx+1,ty+1),cornerLevel(tx,ty+1)].map(l=>l*STEP),UV=[[0,0],[1,0],[1,1],[0,1]],
+  P=UV.map(([u,v],i)=>[(tx+u)*T,(ty+v)*T,h[i]]),tris=Math.abs(h[0]-h[2])<=Math.abs(h[1]-h[3])?[[0,1,2],[0,2,3]]:[[0,1,3],[1,2,3]];
+  return{h,P,tris,N:tris.map(([a,b,c])=>triNormal(P[a],P[b],P[c])),C:tris.map(q=>[0,1,2].map(k=>(P[q[0]][k]+P[q[1]][k]+P[q[2]][k])/3))}}
+// borde de esta baldosa → [vecino dx, dy, índices locales del mismo borde en el vecino]
+const BORDER={"0,1":[0,-1,3,2],"1,2":[1,0,0,3],"2,3":[0,1,1,0],"0,3":[-1,0,2,1]};
+/** Rasteriza una baldosa de terreno (dos triángulos) con material por píxel, sombreado por pendiente,
+ *  textura y aristas: brillo en los bordes convexos (cima de la pendiente) y sombra en los cóncavos (pie). */
+function makeTerrainTile(tx,ty){const G0=tileGeom(tx,ty),h=G0.h,hmax=Math.max(...h),hmin=Math.min(...h),tris=G0.tris;
+  const Wd=64,Hd=33+hmax-hmin,c=mk(Wd,Hd),g=c.getContext("2d"),img=g.createImageData(Wd,Hd),d=img.data;
+  const V=[[0,0,h[0]],[1,0,h[1]],[1,1,h[2]],[0,1,h[3]]],S=V.map(([u,v,z])=>[32+32*(u-v),16*(u+v)-z+hmax]);
+  const tn=G0.N.map(shadeLv),creases=[[],[]];
+  for(let q=0;q<2;q++){const tq=tris[q];for(const[i,j]of[[tq[0],tq[1]],[tq[1],tq[2]],[tq[0],tq[2]]]){let n2,c2;
+      if(tris[1-q].includes(i)&&tris[1-q].includes(j)){n2=G0.N[1-q];c2=G0.C[1-q]}
+      else{const bk=Math.min(i,j)+","+Math.max(i,j),bd=BORDER[bk];if(!bd)continue;const ng=tileGeom(tx+bd[0],ty+bd[1]),k=ng.tris.findIndex(z=>z.includes(bd[2])&&z.includes(bd[3]));if(k<0)continue;n2=ng.N[k];c2=ng.C[k]}
+      const n1=G0.N[q],c1=G0.C[q];if(n1[0]*n2[0]+n1[1]*n2[1]+n1[2]*n2[2]>.995)continue;const l1=tn[q],l2=shadeLv(n2);if(l1>l2)continue;
+      const conv=(n1[0]-n2[0])*(c1[0]-c2[0])+(n1[1]-n2[1])*(c1[1]-c2[1])+(n1[2]-n2[2])*(c1[2]-c2[2])>0;
+      creases[q].push({A:S[i],B:S[j],lv:conv?Math.min(5,Math.max(l1,l2)+1):Math.max(0,Math.min(l1,l2)-1)})}}
+  const G5=[];for(let j=0;j<=4;j++)for(let i=0;i<=4;i++)G5.push(fieldsAt(tx*T+i*8,ty*T+j*8));
+  const samp=(u,v)=>{const x=Math.min(3.999,Math.max(0,u*4)),y=Math.min(3.999,Math.max(0,v*4)),i=Math.floor(x),j=Math.floor(y),fx=x-i,fy=y-j,a=G5[j*5+i],b=G5[j*5+i+1],cc=G5[j*5+i+5],dd=G5[j*5+i+6];
+    return[0,1,2].map(k=>(a[k]*(1-fx)+b[k]*fx)*(1-fy)+(cc[k]*(1-fx)+dd[k]*fx)*fy)};
+  const foam=[214,238,249],grid=WS.check;
+  for(let py=0;py<Hd;py++)for(let px=0;px<Wd;px++){const X0=px+.5,Y0=py+.5;
+    for(let q=0;q<2;q++){const[a,b,cc]=tris[q],A=S[a],B=S[b],C=S[cc],den=(B[1]-C[1])*(A[0]-C[0])+(C[0]-B[0])*(A[1]-C[1]);if(!den)continue;
+      const w1=((B[1]-C[1])*(X0-C[0])+(C[0]-B[0])*(Y0-C[1]))/den,w2=((C[1]-A[1])*(X0-C[0])+(A[0]-C[0])*(Y0-C[1]))/den,w3=1-w1-w2;
+      if(w1<-.002||w2<-.002||w3<-.002)continue;
+      const u=w1*V[a][0]+w2*V[b][0]+w3*V[cc][0],v=w1*V[a][1]+w2*V[b][1]+w3*V[cc][1],X=tx*T+u*T,Y=ty*T+v*T;
+      let[e,tt,hh]=samp(u,v);e+=(noise3(X/14,Y/14,0,layout+7)-.5)*.022;
+      const dd=c01x((noise3(X/38,Y/38,0,layout+5)-.5)*2.2+.5),m=surfaceOf(e,tt,hh,dd);let col;
+      if(m==="water"){if(e>SEA-.012)col=foam;else{const w=noise3(X/9,Y/3.5,0,21),C3=GROUND.water;col=C3[w>.68?2:w<.3?1:0];if(typeof col==="string"){const n=parseInt(col.slice(1),16);col=[n>>16&255,n>>8&255,n&255]}}}
+      else{let lv=-1;for(const e2 of creases[q]){const ex=e2.B[0]-e2.A[0],ey=e2.B[1]-e2.A[1];if(Math.abs(ex*(Y0-e2.A[1])-ey*(X0-e2.A[0]))/H2(ex,ey)<.75){lv=e2.lv;break}}
+        const s=noise3(X/3.1,Y/3.1,0,9);col=rampOf(m)[lv>=0?lv:Math.max(1,Math.min(5,tn[q]+(s>.68?1:s<.3?-1:0)))]}
+      const k=(py*Wd+px)*4,f=grid&&(u>.97||v>.97)?.88:1;d[k]=col[0]*f;d[k+1]=col[1]*f;d[k+2]=col[2]*f;d[k+3]=255;break}}
+  g.putImageData(img,0,0);return{c,hmax}}
+const terrainCache=new Map(),cellMem=new Map();
+function resetGround(){terrainCache.clear();cellMem.clear()}
+function cellInfo(gx,gy,CELL){const k=gx+","+gy;let v=cellMem.get(k);if(!v){const f=fieldsAt((gx+.5)*CELL*T,(gy+.5)*CELL*T);v={f,bio:biomeAt(...f)};cellMem.set(k,v);if(cellMem.size>20000)cellMem.clear()}return v}
+function placeholderTile(tx,ty){const L=[cornerLevel(tx,ty),cornerLevel(tx+1,ty),cornerLevel(tx+1,ty+1),cornerLevel(tx,ty+1)],h=L.map(l=>l*STEP),hmax=Math.max(...h);
+  const f=fieldsAt((tx+.5)*T,(ty+.5)*T),m=surfaceOf(f[0],f[1],f[2],.5),c=rampOf(m==="water"?"water":m)[3];return{h,hmax,col:`rgb(${c[0]},${c[1]},${c[2]})`}}
+function drawObj(d){if(sel&&sel.halo&&d.sl===sel.sl&&d.gx===sel.gx&&d.gy===sel.gy&&d.sl.state==="ready")lctx.drawImage(sel.halo,d.dx-1,d.dy-1);
+  lctx.drawImage(d.im,d.dx,d.dy);
+  if(d.sl.state==="building"){const sc=d.sl.job.scan();if(sc){lctx.fillStyle="#00c4ff";lctx.fillRect(d.dx+sc.x,d.dy+sc.y,sc.w,1)}}}
+function objImage(sl){if(sl.state==="building")return[sl.jcv,sl.job.ox,sl.job.oy,sl.job.w,sl.job.h];
+  return[(sl.state==="erasing"&&sl.e>0)||sl.state==="appearing"?sl.ecv:sl.cv,sl.s.originX,sl.s.originY,sl.s.width,sl.s.height]}
+function drawWorld(){const W=low.width,H=low.height,cx=Math.floor(cam.x),cy=Math.floor(cam.y),exterior=isExterior(),gdl=performance.now()+5;
   lctx.fillStyle="#1c1c1c";lctx.fillRect(0,0,W,H);
   const inv=(sx,sy)=>[((sy+cy)/16+(sx+cx)/32)/2,((sy+cy)/16-(sx+cx)/32)/2];
-  const cs=[inv(0,0),inv(W,0),inv(0,H+120),inv(W,H+120)];
+  const cs=[inv(0,-40),inv(W,-40),inv(0,H+200),inv(W,H+200)],CELL=exterior?2:3;
   const tx0=Math.floor(Math.min(...cs.map(c=>c[0])))-2,tx1=Math.ceil(Math.max(...cs.map(c=>c[0])))+2,ty0=Math.floor(Math.min(...cs.map(c=>c[1])))-2,ty1=Math.ceil(Math.max(...cs.map(c=>c[1])))+2;
-  for(let tx=tx0;tx<=tx1;tx++)for(let ty=ty0;ty<=ty1;ty++){const sx=32*(tx-ty)-cx-32,sy=16*(tx+ty)-cy;if(sx<-64||sx>W||sy<-33||sy>H)continue;
-    lctx.drawImage(TILES[WS.check?((tx+ty)&1):0],sx,sy)}
-  drawn=[];visible=new Set();
+  drawn=[];visible=new Set();const items=[],under=new Map();
+  // objetos
   for(let gx=Math.floor(tx0/CELL)-1;gx<=Math.ceil(tx1/CELL);gx++)for(let gy=Math.floor(ty0/CELL)-1;gy<=Math.ceil(ty1/CELL);gy++){
-    if(h32(gx,gy,layout)>WS.dens)continue;const sl=slots[Math.floor(h32(gx,gy,layout+17)*WS.pool)];if(!sl)continue;
-    {const gsx=32*(gx-gy)*CELL-cx,gsy=16*(gx+gy)*CELL-cy;if(gsx>-120&&gsx<W+120&&gsy>-40&&gsy<H+140)visible.add(sl.i)}
-    if(sl.state==="queued")continue;
+    if(h32(gx,gy,layout)>WS.dens)continue;let sl;
+    if(exterior&&WS.src==="random"){const ci=cellInfo(gx,gy,CELL),L=slotsByBio[ci.bio]||slots;sl=L[Math.floor(h32(gx,gy,layout+17)*L.length)]}
+    else sl=slots[Math.floor(h32(gx,gy,layout+17)*WS.pool)];if(!sl)continue;
+    {const gsx=32*(gx-gy)*CELL-cx,gsy=16*(gx+gy)*CELL-cy;if(gsx>-120&&gsx<W+120&&gsy>-60&&gsy<H+200)visible.add(sl.i)}
+    if(sl.state==="queued"||sl.state==="void")continue;
     const sp=sl.spec,ax=gx*CELL+Math.floor(h32(gx,gy,layout+31)*Math.max(1,CELL-sp.fw+1)),ay=gy*CELL+Math.floor(h32(gx,gy,layout+47)*Math.max(1,CELL-sp.fd+1));
-    let im,ox,oy,iw,ih;
-    if(sl.state==="building"){im=sl.jcv;ox=sl.job.ox;oy=sl.job.oy;iw=sl.job.w;ih=sl.job.h}
-    else{im=sl.state==="erasing"&&sl.e>0?sl.ecv:sl.cv;ox=sl.s.originX;oy=sl.s.originY;iw=sl.s.width;ih=sl.s.height}
-    const dx=32*(ax-ay)-cx-ox,dy=16*(ax+ay)-cy-oy;if(dx>W||dy>H||dx+iw<0||dy+ih<0)continue;
-    drawn.push({sl,im,dx,dy,gx,gy,depth:ax+sp.fw/2+ay+sp.fd/2})}
-  drawn.sort((a,b)=>a.depth-b.depth);
-  for(const d of drawn){if(sel&&sel.halo&&d.sl===sel.sl&&d.gx===sel.gx&&d.gy===sel.gy&&d.sl.state==="ready")lctx.drawImage(sel.halo,d.dx-1,d.dy-1);
-    lctx.drawImage(d.im,d.dx,d.dy);
-    if(d.sl.state==="building"){const sc=d.sl.job.scan();if(sc){lctx.fillStyle="#00c4ff";lctx.fillRect(d.dx+sc.x,d.dy+sc.y,sc.w,1)}}}
+    let z=0;
+    if(exterior){const l0=cornerLevel(ax,ay);let flat=true;for(let i=0;i<=sp.fw&&flat;i++)for(let j=0;j<=sp.fd;j++)if(cornerLevel(ax+i,ay+j)!==l0){flat=false;break}
+      if(!flat)continue;const f=fieldsAt((ax+sp.fw/2)*T,(ay+sp.fd/2)*T);if(f[0]<SEA+.004)continue;z=l0*STEP}
+    const[im,ox,oy,iw,ih]=objImage(sl),dx=32*(ax-ay)-cx-ox,dy=16*(ax+ay)-cy-oy-z;if(dx>W||dy>H||dx+iw<0||dy+ih<0)continue;
+    const dep=ax+sp.fw/2+ay+sp.fd/2,o={sl,im,dx,dy,gx,gy,depth:dep,k:1};drawn.push(o);items.push(o);
+    if(exterior)for(let i=0;i<sp.fw;i++)for(let j=0;j<sp.fd;j++)under.set((ax+i)+","+(ay+j),dep-.001)}
+  // suelo
+  for(let tx=tx0;tx<=tx1;tx++)for(let ty=ty0;ty<=ty1;ty++){const sx=32*(tx-ty)-cx,sy=16*(tx+ty)-cy;if(sx<-32||sx>W+32||sy<-34||sy>H+120)continue;
+    const key=tx+","+ty;items.push({k:0,tx,ty,sx,sy,key,depth:under.has(key)?under.get(key):tx+ty+1})}
+  items.sort((a,b)=>a.depth-b.depth||a.k-b.k);
+  for(const it of items){if(it.k===1){drawObj(it);continue}
+    if(!exterior){lctx.drawImage(TILES[WS.check?((it.tx+it.ty)&1):0],it.sx-32,it.sy);continue}
+    let tt=terrainCache.get(it.key);
+    if(!tt&&performance.now()<gdl){tt=makeTerrainTile(it.tx,it.ty);terrainCache.set(it.key,tt);if(terrainCache.size>5000)for(const k of[...terrainCache.keys()].slice(0,1200))terrainCache.delete(k)}
+    if(tt){lctx.drawImage(tt.c,it.sx-32,it.sy-tt.hmax);continue}
+    const ph=placeholderTile(it.tx,it.ty);lctx.fillStyle=ph.col;lctx.beginPath();
+    [[0,0,0],[1,0,1],[1,1,2],[0,1,3]].forEach(([u,v,i],n)=>{const X=it.sx+32*(u-v),Y=it.sy+16*(u+v)-ph.h[i];n?lctx.lineTo(X,Y):lctx.moveTo(X,Y)});lctx.closePath();lctx.fill()}
   wctx.imageSmoothingEnabled=false;wctx.drawImage(low,0,0,wcv.width,wcv.height)}
 const DIRV=[[2,1],[-2,1],[0,1],[1,0]];
 function loop(t){requestAnimationFrame(loop);if(current!=="mundo")return;const dt=loop.last?Math.min(.05,(t-loop.last)/1000):0;loop.last=t;
@@ -245,7 +380,7 @@ function hueParams(t,p){const o=JSON.parse(JSON.stringify(p));(FURNI[t].colors||
 function hueItem(it){const o=JSON.parse(JSON.stringify(it));if(o.type==="supra")o.children.forEach(c=>c.params=hueParams(c.type,c.params));else o.params=hueParams(o.type,o.params);return o}
 let reviewPending=false;
 function reView(){if(reviewPending)return;reviewPending=true;requestAnimationFrame(()=>{reviewPending=false;
-  for(const sl of slots){if(sl.s&&(sl.state==="ready"||sl.state==="erasing")){sl.cv=viewCanvas(sl.s);if(sl.state==="erasing")sl.eview=viewRGBA(sl.s)}
+  for(const sl of slots){if(sl.s&&(sl.state==="ready"||sl.state==="erasing"||sl.state==="appearing")){sl.cv=viewCanvas(sl.s);if(sl.state!=="ready")sl.eview=viewRGBA(sl.s)}
     if(sl.state==="building")paintJob(sl)}
   if(sel){const c=$("pickCv"),g=c.getContext("2d");g.imageSmoothingEnabled=false;g.clearRect(0,0,c.width,c.height);g.drawImage(sel.sl.cv,0,0,c.width,c.height)}})}
 
@@ -382,8 +517,55 @@ addEventListener("keydown",e=>{if(current!=="supra"||/INPUT|SELECT|TEXTAREA/.tes
   const m={ArrowRight:[1,0],ArrowLeft:[-1,0],ArrowDown:[0,1],ArrowUp:[0,-1]}[e.key];if(m){e.preventDefault();seMove(...m)}
   if(e.key==="Delete"||e.key==="Backspace"){e.preventDefault();$("seDel").click()}});
 
+
+// ===================== LABORATORIO: ALTERNATIVAS =====================
+// Variantes del furni actual: muta parámetros (forma) y/o gira el tono y la luz (color).
+let altToken=0;const altBox=$("altGrid");
+{const i=$("altAmt"),o=$("altAmtV");const f=()=>o.textContent=Math.round(i.value*100)+" %";f();i.addEventListener("input",f)}
+function variant(t,base,r,mode,amt){const f=FURNI[t],p=JSON.parse(JSON.stringify(base));
+  if(mode!=="color"){(f.params||[]).forEach(([k,,mn,mx,st])=>{if(k==="seed"){p[k]=1+Math.floor(r()*499);return}
+      p[k]=+fmt(Math.min(mx,Math.max(mn,Math.round((p[k]+(r()-.5)*2*amt*(mx-mn)*.5)/st)*st)))});
+    (f.selects||[]).forEach(([k,,o])=>{if(r()<amt*.5)p[k]=o[Math.floor(r()*o.length)][0]});
+    (f.toggles||[]).forEach(([k])=>{if(r()<amt*.25)p[k]=!p[k]})}
+  if(mode!=="shape"){const dh=(r()-.5)*2*amt*180,dl=(r()-.5)*amt*.25;
+    (f.colors||[]).forEach(([k])=>{const n=parseInt(p[k].slice(1),16),[h,s,l]=rgb2hsl(n>>16&255,n>>8&255,n&255);
+      p[k]=hex(hsl2rgb(h+dh+(r()-.5)*amt*40,Math.min(1,Math.max(0,s+(r()-.5)*amt*.3)),Math.min(.92,Math.max(.08,l+dl))))})}
+  return p}
+function genAlternatives(){const tok=++altToken,t=type,base=JSON.parse(JSON.stringify(P)),mode=$("altMode").value,amt=+$("altAmt").value,r=rng((Math.random()*2e9|0)+1),S={...G};
+  altBox.innerHTML="";const items=[];
+  for(let i=0;i<8;i++){const p=variant(t,base,r,mode,amt),b=document.createElement("button");b.className="alt wait";b.setAttribute("aria-label","Alternativa "+(i+1));
+    b.addEventListener("click",()=>{if(type!==t)return;allP[t]=JSON.parse(JSON.stringify(p));buildPanel();schedule();$("altNote").textContent="Alternativa "+(i+1)+" aplicada. Genera otras a partir de esta."});
+    altBox.appendChild(b);items.push({p,b})}
+  let k=0,job=null;const tick=()=>{if(tok!==altToken)return;if(!job){if(k>=items.length){$("altNote").textContent="Haz clic en una alternativa para tomarla.";return}
+      const keep=G;G=S;job=makeJob(FURNI[t].build(items[k].p),rot,S);G=keep}
+    job.step(Infinity,performance.now()+6);
+    if(job.done){const s=job.finish(),c=spriteCanvas(s),cv=mk(1,1),z=Math.max(1,Math.min(3,Math.floor(Math.min(110/c.width,100/c.height))));cv.width=c.width*z;cv.height=c.height*z;
+      const g=cv.getContext("2d");g.imageSmoothingEnabled=false;g.drawImage(c,0,0,cv.width,cv.height);items[k].b.classList.remove("wait");items[k].b.appendChild(cv);job=null;k++}
+    setTimeout(tick,16)};
+  $("altNote").textContent="Dibujando alternativas…";tick()}
+$("altGen").addEventListener("click",genAlternatives);
+
+// =================== LABORATORIO: TRASLADAR COLORIMETRÍA ===================
+let clip=null;
+const colorsOf=(t,p)=>(FURNI[t].colors||[]).map(([k])=>p[k]).filter(Boolean);
+const lumOf=h=>{const n=parseInt(h.slice(1),16);return .2126*(n>>16&255)+.7152*(n>>8&255)+.0722*(n&255)};
+function setClip(from,colors){clip={from,colors:[...new Set(colors.map(c=>c.toLowerCase()))]};const box=$("clipBox");box.innerHTML="";
+  clip.colors.forEach(c=>{const i=document.createElement("i");i.style.background=c;i.title=c;box.appendChild(i)});
+  const s=document.createElement("span");s.className="note";s.textContent="de «"+from+"»";box.appendChild(s);$("clipApply").disabled=false}
+$("clipThis").addEventListener("click",()=>setClip(FURNI[type].name,colorsOf(type,P)));
+function refreshClipCat(){const s=$("clipCat");s.innerHTML="";s.add(new Option("Elegir objeto…",""));cat.items.forEach(it=>s.add(new Option(it.name,it.id)))}
+$("clipCat").addEventListener("change",e=>{const it=cat.items.find(i=>i.id===e.target.value);if(!it)return;
+  setClip(it.name,it.type==="supra"?it.children.flatMap(c=>colorsOf(c.type,c.params)):colorsOf(it.type,it.params));e.target.value=""});
+$("clipApply").addEventListener("click",()=>{if(!clip||!clip.colors.length)return;const keys=(FURNI[type].colors||[]).map(c=>c[0]);if(!keys.length)return;
+  const src=clip.colors,byLum=$("clipMap").value==="lum",hueOnly=$("clipHue").checked;let pick;
+  if(byLum){const s=src.slice().sort((a,b)=>lumOf(a)-lumOf(b)),order=keys.slice().sort((a,b)=>lumOf(P[a])-lumOf(P[b]));pick={};
+    order.forEach((k,i)=>pick[k]=s[order.length===1?Math.floor(s.length/2):Math.round(i*(s.length-1)/(order.length-1))])}
+  else{pick={};keys.forEach((k,i)=>pick[k]=src[i%src.length])}
+  for(const k of keys){let c=pick[k];if(hueOnly){const a=parseInt(c.slice(1),16),b=parseInt(P[k].slice(1),16),[h,s]=rgb2hsl(a>>16&255,a>>8&255,a&255),[,,l]=rgb2hsl(b>>16&255,b>>8&255,b&255);c=hex(hsl2rgb(h,s,l))}P[k]=c}
+  buildPanel();schedule();note("Colorimetría de «"+clip.from+"» aplicada a "+FURNI[type].name+".")});
+
 // ======================= REINICIO DEL MUNDO ========================
-function resetWorld(){closePick();for(const sl of slots){if(sl.state==="ready")beginErase(sl,Math.random()*.8);
+function resetWorld(){closePick();for(const sl of slots){if(sl.state==="appearing"){sl.state="erasing";sl.e=Math.max(0,sl.e)}if(sl.state==="ready")beginErase(sl,Math.random()*.8);
   else if(sl.state==="building"){sl.state="queued";sl.g++;sl.job=sl.jcv=null}else if(sl.state==="void")sl.state="queued"}}
 
 // ===================== PANEL DEL FURNI (clic) ======================
@@ -399,7 +581,7 @@ function openPick(d){if(sel&&sel.sl!==d.sl)sel.sl.locked=false;const sl=d.sl,sp=
   const c=$("pickCv"),z=Math.max(1,Math.min(3,Math.floor(Math.min(260/sl.s.width,190/sl.s.height))));c.width=sl.s.width*z;c.height=sl.s.height*z;
   const g=c.getContext("2d");g.imageSmoothingEnabled=false;g.drawImage(sl.cv,0,0,c.width,c.height);
   $("pickName").textContent=sp.name||nameOf(sp.t);
-  $("pickMeta").textContent=`${nameOf(sp.t)} · ${sp.fw}×${sp.fd} baldosas · altura ${fmt1(sp.t==="supra"?itemStack(sp.it):FURNI[sp.t].stack(sp.p))} · ${ARROWS[sp.rot]}`;
+  $("pickMeta").textContent=`${nameOf(sp.t)} · ${sp.fw}×${sp.fd} baldosas · altura ${fmt1(sp.t==="supra"?itemStack(sp.it):FURNI[sp.t].stack(sp.p))}${sp.t!=="supra"&&FURNI[sp.t].walk?" · pasable":""} · ${ARROWS[sp.rot]}`;
   syncPickSave();$("pickNote").textContent="";$("pick").hidden=false}
 function syncPickSave(){if(!sel)return;const saved=sel.sl.spec.item&&cat.items.some(i=>i.id===sel.sl.spec.item),b=$("pickSave");
   b.disabled=!!saved;b.querySelector(".pt-ring__face").textContent=saved?"Ya está en el catálogo":"Guardar en catálogo"}
@@ -432,6 +614,9 @@ function refreshSrc(){const s=$("wsrc");s.innerHTML="";s.add(new Option("Aleator
   cat.families.forEach(f=>s.add(new Option(`Familia: ${f.name} (${cat.items.filter(i=>i.families.includes(f.id)).length})`,"fam:"+f.id)));
   if(![...s.options].some(o=>o.value===WS.src))WS.src="random";s.value=WS.src;
   const L=srcList();$("wsrcNote").textContent=L?(L.length?"Los furnis salen de tu catálogo, con sus colores guardados.":"No hay objetos en esta selección: guarda furnis desde el mundo o el laboratorio."):"La colorimetría se aplica a los furnis aleatorios."}
+{const s=$("wbio");Object.entries(BIOMES).forEach(([k,b])=>s.add(new Option(b.name,k)));if(!BIOMES[WS.bio])WS.bio="interior";s.value=WS.bio;
+  s.addEventListener("change",()=>{WS.bio=s.value;save();resetGround();ensureSlots();resetWorld()})}
+$("wcheck").addEventListener("change",resetGround);
 $("wsrc").addEventListener("change",e=>{WS.src=e.target.value;save();refreshSrc();resetWorld()});
 
 // ============================ CATÁLOGO =============================
@@ -467,8 +652,8 @@ function furniJSON(it){const fam=it.families?{families:it.families}:{};
     return{format:"furnilab.supra",version:1,name:it.name,type:"supra",rotation:it.rot,footprint:supraFoot(it),stack:+itemStack(it).toFixed(2),
       children:kids.map(k=>({name:k.name,ref:k.ref,type:k.type,rotation:k.rot,x:k.x,y:k.y,z:+k.z.toFixed(2),dz:k.dz||0,born:k.born,params:k.params})),render:{...WG,alpha:WS.alpha},...fam}}
   const f=buildWG(it.type,it.params);
-  return{format:"furnilab.furni",version:1,name:it.name,type:it.type,rotation:it.rot,footprint:f.footprint,stack:+FURNI[it.type].stack(it.params).toFixed(2),params:it.params,render:{...WG,alpha:WS.alpha},...fam}}
-function persistCat(){const ok=CatalogStore.save({format:"furnilab.catalog",version:1,families:cat.families,items:cat.items});
+  return{format:"furnilab.furni",version:1,name:it.name,type:it.type,rotation:it.rot,footprint:f.footprint,stack:+FURNI[it.type].stack(it.params).toFixed(2),pasable:!!FURNI[it.type].walk,categoria:FURNI[it.type].cat,params:it.params,render:{...WG,alpha:WS.alpha},...fam}}
+function persistCat(){try{refreshClipCat()}catch(e){}const ok=CatalogStore.save({format:"furnilab.catalog",version:1,families:cat.families,items:cat.items});
   if(!ok)$("catNote").textContent="No se pudo guardar en este navegador: exporta el catálogo para no perderlo.";refreshSrc();renderCatalog();syncPickSave()}
 function addItem({type:t,params,rot,name}){const it={id:uid(),name:String(name).slice(0,60),type:t,rot,params:sanitizeParams(t,JSON.parse(JSON.stringify(params))),families:[],created:Date.now()};
   if(catFilter!=="all"&&cat.families.some(f=>f.id===catFilter))it.families.push(catFilter);cat.items.push(it);persistCat();return it}
@@ -477,13 +662,13 @@ const thumbCache=new Map(),thumbQ=[];let thumbBusy=false;
 const itemKey=it=>it.type+"|"+it.rot+"|"+JSON.stringify(it.type==="supra"?it.children.map(c=>[c.type,c.rot,c.x,c.y,c.dz,c.born,c.params]):it.params);
 function placeThumb(host,c){host.innerHTML="";const cv=mk(1,1),z=Math.max(1,Math.min(3,Math.floor(Math.min(196/c.width,120/c.height))));cv.width=c.width*z;cv.height=c.height*z;
   const g=cv.getContext("2d");g.imageSmoothingEnabled=false;g.drawImage(c,0,0,cv.width,cv.height);host.appendChild(cv)}
-function requestThumb(it,host){const k=itemKey(it);if(thumbCache.has(k)){placeThumb(host,thumbCache.get(k));return}thumbQ.push({it,host,k});pumpThumbs()}
+function requestThumb(it,host){const k=itemKey(it);if(!thumbCache.has(k)&&spriteMem.has(k))thumbCache.set(k,spriteCanvas(spriteMem.get(k)));if(thumbCache.has(k)){placeThumb(host,thumbCache.get(k));return}thumbQ.push({it,host,k});pumpThumbs()}
 function pumpThumbs(){if(thumbBusy)return;thumbBusy=true;let job=null,cur=null;
   const tick=()=>{if(!job){cur=thumbQ.shift();if(!cur){thumbBusy=false;return}
       if(thumbCache.has(cur.k)){placeThumb(cur.host,thumbCache.get(cur.k));setTimeout(tick,0);return}
       job=makeItemJob(cur.it)}
     job.step(Infinity,performance.now()+5);
-    if(job.done){const c=spriteCanvas(job.finish());thumbCache.set(cur.k,c);placeThumb(cur.host,c);job=null}
+    if(job.done){const s=job.finish(),c=spriteCanvas(s);spriteMem.set(cur.k,s);thumbCache.set(cur.k,c);placeThumb(cur.host,c);job=null}
     setTimeout(tick,16)};tick()}
 let catFilter="all";
 function armConfirm(btn,label,fn){btn.addEventListener("click",()=>{if(btn.dataset.armed){fn();return}btn.dataset.armed="1";const old=btn.textContent;btn.textContent=label;
@@ -533,4 +718,4 @@ $("catFile").addEventListener("change",async e=>{const file=e.target.files[0];e.
   persistCat();$("catNote").textContent=added||fams?`Importado: ${added} objeto(s)`+(fams?` y ${fams} familia(s).`:"."):"No encontré furnis válidos en ese archivo."});
 $("labSave").addEventListener("click",()=>{const it=addItem({type,params:P,rot,name:itemName(type)});note("Guardado en el catálogo como «"+it.name+"».")});
 
-buildPanel();buildGlobal();setRot(0);buildPalUI();refreshSrc();show(location.hash.slice(1)||"mundo");requestAnimationFrame(loop);setTimeout(thumbs,1500);
+buildPanel();buildGlobal();setRot(0);buildPalUI();refreshSrc();refreshClipCat();show(location.hash.slice(1)||"mundo");requestAnimationFrame(loop);setTimeout(thumbs,1500);

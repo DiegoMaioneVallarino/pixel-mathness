@@ -80,6 +80,17 @@ input[type=color]{width:30px;height:30px;border:0;padding:0;background:none;bord
 .chip{border:0;border-radius:999px;padding:4px 10px;font:500 12px var(--pt-font-text);background:var(--pt-grad-surface);box-shadow:0 0 0 1px #d1d1d1;color:#555;cursor:pointer;min-height:30px}
 .chip[aria-pressed=true]{background:var(--pt-grad-select);color:#fff;box-shadow:0 0 0 1px #ffffff55}
 .empty{padding:40px 24px;text-align:center;color:#707070}
+#types [hidden]{display:none!important}
+.altbar{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px 14px;align-items:end;margin-bottom:12px}
+.altgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:10px}
+.alt{height:112px;display:grid;place-items:center;border-radius:10px;border:0;padding:4px;cursor:pointer;background:var(--pt-grad-bg-grid),#e0e0e0;background-size:16px 16px;box-shadow:0 0 0 1px #d1d1d1;transition:transform .15s}
+.alt:hover{transform:scale(1.04);box-shadow:0 0 0 2px #0066ff}.alt canvas{image-rendering:pixelated;max-width:100%;max-height:104px}
+.alt.wait::after{content:"";width:22px;height:2px;background:#00c4ff;animation:altscan 1s linear infinite}
+@keyframes altscan{from{transform:translateY(-20px)}to{transform:translateY(20px)}}
+@media(prefers-reduced-motion:reduce){.alt.wait::after{animation:none}}
+.clip{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-height:44px;margin-bottom:12px}
+.clip i{width:34px;height:34px;border-radius:50%;box-shadow:0 0 0 1px #c9c9c9,inset 0 0 0 2px #ffffff66;display:inline-block}
+.cats{margin:0 0 12px}.cats .chip{min-height:36px;padding:6px 14px;font-size:13px}
 .supra{display:grid;grid-template-columns:250px minmax(0,1fr) 270px;gap:16px;align-items:start}
 @media(max-width:1180px){.supra{grid-template-columns:minmax(0,1fr) 270px}.supra>aside:first-child{grid-column:1/-1}}
 @media(max-width:760px){.supra{grid-template-columns:minmax(0,1fr)}}
