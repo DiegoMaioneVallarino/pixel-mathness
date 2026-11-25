@@ -14,7 +14,7 @@ const PRESETS={marca:["#0894ff","#c959dd","#ff2e54","#ff9004","#0066ff","#ff3fcd
   atardecer:["#ff5e5b","#ff9e44","#ffd166","#8a4fc4","#3d2c8d","#ef476f"],bosque:["#2f5d3a","#6b8f4e","#a3b18a","#8b5e34","#d4a373","#3a4a3f"],
   oceano:["#023e8a","#0077b6","#00b4d8","#90e0ef","#caf0f8","#03045e"],mono:["#151515","#4c4c4c","#707070","#999999","#c9c9c9","#f2f2f2"]};
 const PRESET_NAMES=[["marca","Marca Pairtial"],["pastel","Pastel"],["atardecer","Atardecer"],["bosque","Bosque"],["oceano","Océano"],["mono","Monocromo"],["custom","Personalizada"]];
-const WS=Object.assign({speed:2,zoom:innerWidth<600?2:3,dens:.6,pool:28,dir:0,check:false,draw:5,par:3,every:2.5,renew:true,src:"random",pal:"marca",palette:PRESETS.marca.slice(),palAll:false,hue:0,alpha:1,bio:"mixto",fauna:.5,species:null},store.W||{});
+const WS=Object.assign({veg:.7,speed:2,zoom:innerWidth<600?2:3,dens:.8,pool:28,dir:0,check:false,draw:5,par:3,every:2.5,renew:true,src:"random",pal:"marca",palette:PRESETS.marca.slice(),palAll:false,hue:0,alpha:1,bio:"mixto",fauna:.5,species:null},store.W||{});
 if(!Array.isArray(WS.palette)||WS.palette.length!==6||!WS.palette.every(c=>/^#[0-9a-f]{6}$/i.test(c)))WS.palette=PRESETS.marca.slice();
 if(!PRESET_NAMES.some(p=>p[0]===WS.pal))WS.pal="marca";
 const save=()=>{try{localStorage.setItem("furnilab2",JSON.stringify({type,G,P:allP,W:WS}))}catch(e){}};
@@ -121,23 +121,23 @@ const BIOMES={
   mixto:{name:"Mixto (zonas de todos los biomas)"},
   interior:{name:"Interior (piso plata)",w:INTERIOR_W},
   pradera:{name:"Pradera",main:"grass",patch:"dirt",patchT:.14,shore:"sand",
-    w:{arbol:4,arbusto:4,hierba:7,flores:6,roca:2,valla:2,muro:1,banco:1,farola:1,letrero:1,cultivo:2,pajar:1.5,tronco:1,tocon:1,seta:1,pozo:.6,fuente:.4,seto:1.2,casa:1.4,torre:.4,muralla:.5}},
+    w:{conjunto:7,arbol:7,arbol:4,arbusto:4,hierba:7,flores:6,roca:2,valla:2,muro:1,banco:1,farola:1,letrero:1,cultivo:2,pajar:1.5,tronco:1,tocon:1,seta:1,pozo:.6,fuente:.4,seto:1.2,casa:1.4,torre:.4,muralla:.5}},
   bosque:{name:"Bosque",main:"grassDark",patch:"dirt",patchT:.18,shore:"dirt",
-    w:{pino:6,arbol:4,arbol_muerto:1,tocon:2,tronco:2,seta:3,arbusto:3,hierba:4,flores:1,roca:3,hoguera:.8,lena:1,tienda:.8,empalizada:.6,casa:.7,torre:.4},
+    w:{conjunto:8,pino:10,arbol:7,pino:6,arbol:4,arbol_muerto:1,tocon:2,tronco:2,seta:3,arbusto:3,hierba:4,flores:1,roca:3,hoguera:.8,lena:1,tienda:.8,empalizada:.6,casa:.7,torre:.4},
     pal:{leaf:["#3f7a34","#2f6a30","#4f8a3a","#5a8f2f"],grass:["#3f7a34","#4b8a3e","#5a9a42"]},tweak:(t,p)=>walls(t,p,"madera")},
   desierto:{name:"Desierto",main:"sand",patch:"rock",patchT:.15,shore:"sand",
-    w:{cactus:7,palmera:1.5,roca:5,cristales:1,arbol_muerto:2,hierba:2,barril:1,caja:1,tienda:1,hoguera:.5,casa:.8,torre:.6,muralla:.4},
+    w:{conjunto:5,cactus:7,palmera:1.5,roca:5,cristales:1,arbol_muerto:2,hierba:2,barril:1,caja:1,tienda:1,hoguera:.5,casa:.8,torre:.6,muralla:.4},
     pal:{grass:["#c9b86a","#b8a85a","#d4c27a"],leaf:["#8a9a4a","#9aa85a"],rock:["#c98f55","#b07a45","#d9a86a"],dirt:["#d9b07a","#c99a63"],bark:["#8a6a45","#7a5a3a"],roof:["#c98f55","#a8703f"]},
     tweak:(t,p)=>{if(t==="roca")p.moss=0;walls(t,p,"arena");if(t==="casa")p.roof="plano"}},
   nieve:{name:"Nieve",main:"snow",patch:"rock",patchT:.06,shore:"ice",
-    w:{pino:7,roca:4,arbol_muerto:2,tronco:1,cristales:2,hoguera:1,lena:2,valla:1,tienda:.7,empalizada:.6,casa:.9,torre:.4},
+    w:{conjunto:6,pino:10,pino:7,roca:4,arbol_muerto:2,tronco:1,cristales:2,hoguera:1,lena:2,valla:1,tienda:.7,empalizada:.6,casa:.9,torre:.4},
     pal:{conifer:["#1f4a35","#2a5a40","#24503a"],rock:["#9aa3ad","#b5bcc4","#8a939d"]},tweak:(t,p)=>{if("snow"in p)p.snow=true;walls(t,p,"madera")}},
   pantano:{name:"Pantano",main:"grassDark",patch:"mud",patchT:.4,shore:"mud",
-    w:{arbol:3,arbol_muerto:3,hierba:7,seta:4,tronco:2,roca:1,tocon:2,arbusto:1,casa:.4},
+    w:{conjunto:5,arbol:5,arbol:3,arbol_muerto:3,hierba:7,seta:4,tronco:2,roca:1,tocon:2,arbusto:1,casa:.4},
     pal:{leaf:["#5a7a3a","#4a6a35","#6a7a3f"],grass:["#6a7a3a","#5a6a35","#7a8a45"],bark:["#4a3f2f","#3f352a"]},
     tweak:(t,p)=>{if(t==="arbol")p.droop=Math.max(p.droop,.65);if(t==="hierba"){p.spike=true;p.h=Math.max(p.h,14);p.bend=Math.min(p.bend,.3)}walls(t,p,"madera")}},
   costa:{name:"Costa",main:"sand",patch:"grass",patchT:.25,shore:"sand",
-    w:{palmera:6,roca:4,barril:2,caja:2,hierba:3,banco:.6,farola:.6,hoguera:.6,tienda:.6,casa:.6,torre:.3},
+    w:{conjunto:5,palmera:8,palmera:6,roca:4,barril:2,caja:2,hierba:3,banco:.6,farola:.6,hoguera:.6,tienda:.6,casa:.6,torre:.3},
     pal:{rock:["#b5ab9a","#9a9080","#c9c0b0"]},tweak:(t,p)=>walls(t,p,"madera")}};
 const MIX=["pradera","bosque","desierto","nieve","pantano","costa"];
 const GROUND={grass:["#5fae3a","#529e33","#6ebd47"],grassDark:["#3f7a34","#376c2f","#4b8a3e"],dirt:["#8b6a48","#7c5d3f","#9a7754"],sand:["#e6cf8f","#d8bf7e","#f0dca2"],
@@ -165,23 +165,49 @@ const mk=(w,h)=>{const c=document.createElement("canvas");c.width=w;c.height=h;r
 
 // Una "ranura" de la variedad: en cola → construyendo → lista → borrando → en cola (nueva semilla)
 function srcList(){if(WS.src==="cat")return cat.items;if(String(WS.src).startsWith("fam:")){const id=WS.src.slice(4);return cat.items.filter(x=>x.families.includes(id))}return null}
+// Parámetros aleatorios de un tipo para un bioma (paleta, topes y ajustes del bioma).
+function genParams(t,r,bio,extra){const BIO=BIOMES[bio]&&BIOMES[bio].w?BIOMES[bio]:BIOMES.interior;curBio=bio;
+  const p=randomize(t,defaults(t),r),cap=Object.assign({},CAP[t]||{},extra||{});for(const k in cap)p[k]=Math.min(p[k],cap[k]);
+  if(FURNI[t].onSelect)(FURNI[t].selects||[]).forEach(([k])=>FURNI[t].onSelect(k,p[k],p));
+  if(t==="silla")p.slats=Math.min(p.slats,5);if(["planta","estante"].includes(t))p.seed=(r()*500|0)+1;
+  const used=new Set();for(const[k,role]of Object.entries(ROLE[t]||{})){const L=palFor(role);let j=Math.floor(r()*L.length);
+    if(role==="fabric")for(let n=0;n<L.length&&used.has(L[j]);n++)j=(j+1)%L.length;p[k]=L[j];used.add(L[j])}
+  if(t==="lampara")p.glow=r()<.8;if(BIO.tweak)BIO.tweak(t,p,r);curBio=null;return p}
+// ---------- Conjuntos: suprafurnis generados por tema ----------
+const pickR=(r,a)=>a[Math.floor(r()*a.length)],nR=(r,a,b)=>Array.from({length:a+Math.floor(r()*(b-a+1))});
+const THEMES={
+  arboleda:{name:"Arboleda",bio:{pradera:3,bosque:6,nieve:5,pantano:4},make:(r,b)=>{const tr=b==="nieve"?["pino"]:b==="bosque"?["pino","arbol","arbol"]:b==="pantano"?["arbol","arbol_muerto"]:["arbol","arbol","pino"];
+    return[...nR(r,2,4).map(()=>pickR(r,tr)),...nR(r,1,3).map(()=>b==="nieve"?"roca":"arbusto"),...nR(r,2,4).map(()=>b==="pantano"||b==="nieve"?"hierba":pickR(r,["hierba","flores"]))]}},
+  jardin:{name:"Jardín",bio:{pradera:2},make:r=>["seto","banco","arbol",...nR(r,2,4).map(()=>"flores"),r()<.5?"farola":"fuente"]},
+  huerto:{name:"Huerto",bio:{pradera:2},make:r=>["cultivo","pajar","valla",r()<.5?"pozo":"hierba","hierba"]},
+  campamento:{name:"Campamento",bio:{bosque:2,nieve:2,desierto:1},make:()=>["tienda","hoguera","lena","tronco","hierba"]},
+  ruinas:{name:"Ruinas",bio:{pradera:1,bosque:1,desierto:2,pantano:1},make:r=>["muro","bloquem","bloquem","roca",...nR(r,2,3).map(()=>"hierba")]},
+  casita:{name:"Casita con jardín",bio:{pradera:2,nieve:1,costa:1,bosque:1},make:r=>["casa","arbusto","flores","flores",r()<.6?"arbol":"seto"]},
+  playa:{name:"Playa",bio:{costa:5},make:r=>["palmera","palmera","roca","barril",...nR(r,1,2).map(()=>"hierba")]},
+  oasis:{name:"Rincón del desierto",bio:{desierto:5},make:r=>[...nR(r,2,4).map(()=>"cactus"),"roca","roca","hierba"]}};
+const BIG=["casa","tienda","cultivo","muro","seto","valla","banco","muralla","torre","fuente","pozo"];
+const COMP_CAP={casa:{w:1,d:2,floors:1},cultivo:{w:2,d:1},muro:{n:2},seto:{n:1},valla:{n:2},banco:{n:1},fuente:{n:1},arbol:{h:40,canopy:1.2},pino:{h:64},palmera:{h:56},
+  hierba:{blades:16,spread:6,h:10},flores:{n:5,spread:5},arbusto:{size:1},roca:{size:7,n:2},bloquem:{w:1,d:1},cactus:{h:34}};
+/** Compone un conjunto 2×2 sin encimar piezas sólidas (rejilla de medias baldosas). */
+function genComposition(theme,r,bio){const TH=THEMES[theme],types=TH.make(r,bio).sort((a,b)=>BIG.includes(b)-BIG.includes(a)),occ=new Uint8Array(16),kids=[];
+  types.forEach((t,i)=>{if(!FURNI[t])return;const p=genParams(t,r,bio,COMP_CAP[t]),rot=r()<.5?0:1,fp=buildWG(t,p).footprint,fw=rot%2?fp[1]:fp[0],fd=rot%2?fp[0]:fp[1];if(fw>2||fd>2)return;
+    const pos=[];for(let x=0;x<=2-fw+1e-6;x+=.5)for(let y=0;y<=2-fd+1e-6;y+=.5)pos.push([x,y]);for(let k=pos.length-1;k>0;k--){const j=Math.floor(r()*(k+1));[pos[k],pos[j]]=[pos[j],pos[k]]}
+    const cells=(x,y)=>{const c=[];for(let a=x*2;a<(x+fw)*2-1e-6;a++)for(let b=y*2;b<(y+fd)*2-1e-6;b++)c.push(b*4+a);return c};
+    for(const[x,y]of pos){const c=cells(x,y);if(c.some(q=>occ[q]))continue;c.forEach(q=>occ[q]=1);kids.push({ref:null,name:FURNI[t].name,type:t,rot,params:p,x,y,dz:0,born:i});break}});
+  if(!kids.length)kids.push({ref:null,name:"Árbol",type:"arbol",rot:0,params:genParams("arbol",r,bio),x:.5,y:.5,dz:0,born:0});
+  return{type:"supra",name:TH.name,rot:0,params:{},children:kids}}
+function pickTheme(bio,r){const L=Object.entries(THEMES).filter(([,v])=>v.bio[bio]);if(!L.length)return"arboleda";let tot=L.reduce((a,[,v])=>a+v.bio[bio],0),q=r()*tot;for(const[k,v]of L)if((q-=v.bio[bio])<0)return k;return L[0][0]}
 function specFor(i,g,bio){const r=rng(Math.floor(h32(seed,i,g)*2147483646)+1);r();
   const list=srcList();
   if(list){if(!list.length)return null;const it=list[Math.floor(r()*list.length)];
     if(it.type==="supra"){const[fw,fd]=supraFoot(it);return{t:"supra",it:JSON.parse(JSON.stringify(it)),p:null,rot:it.rot,fw,fd,item:it.id,name:it.name}}
     const keep=G;G=WG;const f=FURNI[it.type].build(it.params);G=keep;
     return{t:it.type,p:JSON.parse(JSON.stringify(it.params)),rot:it.rot,f,fw:it.rot%2?f.footprint[1]:f.footprint[0],fd:it.rot%2?f.footprint[0]:f.footprint[1],item:it.id,name:it.name}}
-  const BIO=BIOMES[bio]&&BIOMES[bio].w?BIOMES[bio]:BIOMES.interior;curBio=bio;
-  const WT=Object.entries(BIO.w).filter(([k])=>FURNI[k]);
+  const BIO=BIOMES[bio]&&BIOMES[bio].w?BIOMES[bio]:BIOMES.interior;
+  const WT=Object.entries(BIO.w).filter(([k])=>FURNI[k]||k==="conjunto");
   let tot=WT.reduce((a,w)=>a+w[1],0),pick=r()*tot,t=WT[0][0];for(const[k,w]of WT){if((pick-=w)<0){t=k;break}}
-  const p=randomize(t,defaults(t),r),cap=CAP[t]||{};for(const k in cap)p[k]=Math.min(p[k],cap[k]);
-  if(FURNI[t].onSelect)(FURNI[t].selects||[]).forEach(([k])=>FURNI[t].onSelect(k,p[k],p));
-  if(t==="silla")p.slats=Math.min(p.slats,5);if(t==="planta"||t==="estante")p.seed=(r()*500|0)+1;
-  const used=new Set();for(const[k,role]of Object.entries(ROLE[t]||{})){const L=palFor(role);let j=Math.floor(r()*L.length);
-    if(role==="fabric")for(let n=0;n<L.length&&used.has(L[j]);n++)j=(j+1)%L.length;p[k]=L[j];used.add(L[j])}
-  if(t==="lampara")p.glow=r()<.8;
-  if(BIO.tweak)BIO.tweak(t,p,r);curBio=null;
-  const rr=r()<.5?0:1,keep=G;G=WG;const f=FURNI[t].build(p);G=keep;
+  if(t==="conjunto"){const it=genComposition(pickTheme(bio,r),r,bio),[fw,fd]=supraFoot(it);return{t:"supra",it,p:null,rot:0,fw,fd,name:it.name}}
+  const p=genParams(t,r,bio),rr=r()<.5?0:1,f=buildWG(t,p);
   return{t,p,rot:rr,f,fw:rr%2?f.footprint[1]:f.footprint[0],fd:rr%2?f.footprint[0]:f.footprint[1]}}
 // En modo mixto cada ranura pertenece a un bioma; cada zona del mundo elige entre las ranuras de su bioma.
 let slotsByBio={};
@@ -292,7 +318,7 @@ function makeTerrainTile(tx,ty){const G0=tileGeom(tx,ty),h=G0.h,hmax=Math.max(..
       const k=(py*Wd+px)*4,f=grid&&(u>.97||v>.97)?.88:1;d[k]=col[0]*f;d[k+1]=col[1]*f;d[k+2]=col[2]*f;d[k+3]=255;break}}
   g.putImageData(img,0,0);return{c,hmax}}
 const terrainCache=new Map(),cellMem=new Map();
-function resetGround(){terrainCache.clear();cellMem.clear()}
+function resetGround(){terrainCache.clear();cellMem.clear();if(typeof tileMem!=="undefined")tileMem.clear()}
 function cellInfo(gx,gy,CELL){const k=gx+","+gy;let v=cellMem.get(k);if(!v){const f=fieldsAt((gx+.5)*CELL*T,(gy+.5)*CELL*T);v={f,bio:biomeAt(...f)};cellMem.set(k,v);if(cellMem.size>20000)cellMem.clear()}return v}
 function placeholderTile(tx,ty){const L=[cornerLevel(tx,ty),cornerLevel(tx+1,ty),cornerLevel(tx+1,ty+1),cornerLevel(tx,ty+1)],h=L.map(l=>l*STEP),hmax=Math.max(...h);
   const f=fieldsAt((tx+.5)*T,(ty+.5)*T),m=surfaceOf(f[0],f[1],f[2],.5),c=rampOf(m==="water"?"water":m)[3];return{h,hmax,col:`rgb(${c[0]},${c[1]},${c[2]})`}}
@@ -301,12 +327,43 @@ function drawObj(d){if(sel&&sel.halo&&d.sl===sel.sl&&d.gx===sel.gx&&d.gy===sel.g
   if(d.sl.state==="building"){const sc=d.sl.job.scan();if(sc){lctx.fillStyle="#00c4ff";lctx.fillRect(d.dx+sc.x,d.dy+sc.y,sc.w,1)}}}
 function objImage(sl){if(sl.state==="building")return[sl.jcv,sl.job.ox,sl.job.oy,sl.job.w,sl.job.h];
   return[(sl.state==="erasing"&&sl.e>0)||sl.state==="appearing"?sl.ecv:sl.cv,sl.s.originX,sl.s.originY,sl.s.width,sl.s.height]}
+// ---------- Vegetación decorativa (por baldosa, independiente de los objetos) ----------
+const DECOR={pradera:["hierba","hierba","flores","flores","arbusto","hierba"],bosque:["hierba","seta","arbusto","hierba","tocon","flores"],desierto:["hierba","roca","roca","cactus"],
+  nieve:["roca","hierba","roca"],pantano:["hierba","hierba","seta","hierba"],costa:["hierba","roca","hierba"]};
+const DECOR_CAP={hierba:{blades:12,h:9,spread:5},flores:{n:4,spread:4,h:7},arbusto:{size:.75,n:5},roca:{size:4,n:1},seta:{n:2,size:1},tocon:{r:5,h:5},cactus:{h:16,arms:1}};
+const decorSprites={},decorQ=[];let decorJob=null;
+function decorFor(bio){if(!decorSprites[bio]){decorSprites[bio]=[];const L=DECOR[bio]||[],r=rng(Math.floor(h32(layout,bio.length,77)*2e9)+1);
+    for(let i=0;i<10&&L.length;i++){const t=pickR(r,L),p=genParams(t,r,bio,DECOR_CAP[t]);decorQ.push({bio,t,p,rot:r()<.5?0:1})}}return decorSprites[bio]}
+function pumpDecor(deadline){while(performance.now()<deadline){if(!decorJob){const q=decorQ.shift();if(!q)return;const keep=G;G=WG;decorJob={q,job:makeJob(FURNI[q.t].build(q.p),q.rot,WG)};G=keep}
+  decorJob.job.step(Infinity,deadline);if(decorJob.job.done){const s=decorJob.job.finish();s.cv=spriteCanvas(s);decorSprites[decorJob.q.bio].push(s);decorJob=null}}}
+const tileMem=new Map();
+function tileInfo(tx,ty){const k=tx+","+ty;let v=tileMem.get(k);if(!v){const f=fieldsAt((tx+.5)*T,(ty+.5)*T),L=[cornerLevel(tx,ty),cornerLevel(tx+1,ty),cornerLevel(tx+1,ty+1),cornerLevel(tx,ty+1)];
+  v={bio:biomeAt(...f),water:f[0]<SEA+.004,flat:L.every(l=>l===L[0])};tileMem.set(k,v);if(tileMem.size>30000)tileMem.clear()}return v}
+// ---------- Orden de profundidad isométrico ----------
+// Cada elemento tiene su huella en el plano (rectángulo en baldosas) y su caja en pantalla.
+// Solo se ordenan los pares que se solapan en pantalla: A va antes que B si su huella queda
+// completamente detrás (menor x o menor y). Si las huellas se cruzan, el suelo va primero.
+function isoSort(items){const n=items.length,adj=Array.from({length:n},()=>[]),indeg=new Int32Array(n);
+  const behind=(a,b)=>a.r[1]<=b.r[0]+1e-6||a.r[3]<=b.r[2]+1e-6;
+  for(let i=0;i<n;i++){const A=items[i];for(let j=i+1;j<n;j++){const B=items[j];
+    if(A.b[0]>=B.b[1]||B.b[0]>=A.b[1]||A.b[2]>=B.b[3]||B.b[2]>=A.b[3])continue;
+    const ab=behind(A,B),ba=behind(B,A);let first;
+    if(ab&&!ba)first=0;else if(ba&&!ab)first=1;
+    else if(A.k===0&&B.k!==0)first=0;else if(B.k===0&&A.k!==0)first=1;
+    else{const da=A.r[0]+A.r[1]+A.r[2]+A.r[3],db=B.r[0]+B.r[1]+B.r[2]+B.r[3];first=da<db-1e-6?0:db<da-1e-6?1:(A.ord||0)<=(B.ord||0)?0:1}
+    if(first===0){adj[i].push(j);indeg[j]++}else{adj[j].push(i);indeg[i]++}}}
+  const base=items.map((it,i)=>i).sort((a,b)=>(items[a].r[0]+items[a].r[2])-(items[b].r[0]+items[b].r[2])),out=[],used=new Uint8Array(n);
+  let ready=base.filter(i=>!indeg[i]);
+  while(out.length<n){if(!ready.length){const i=base.find(q=>!used[q]);ready=[i];indeg[i]=0}
+    const i=ready.shift();if(used[i])continue;used[i]=1;out.push(items[i]);const nx=[];for(const j of adj[i])if(--indeg[j]===0&&!used[j])nx.push(j);
+    if(nx.length){ready=ready.concat(nx).sort((a,b)=>(items[a].r[0]+items[a].r[2])-(items[b].r[0]+items[b].r[2]))}}
+  return out}
 function drawWorld(){const W=low.width,H=low.height,cx=Math.floor(cam.x),cy=Math.floor(cam.y),exterior=isExterior(),gdl=performance.now()+5;
   lctx.fillStyle="#1c1c1c";lctx.fillRect(0,0,W,H);
   const inv=(sx,sy)=>[((sy+cy)/16+(sx+cx)/32)/2,((sy+cy)/16-(sx+cx)/32)/2];
   const cs=[inv(0,-40),inv(W,-40),inv(0,H+200),inv(W,H+200)],CELL=exterior?2:3;
   view={W,H,cx,cy};const tx0=Math.floor(Math.min(...cs.map(c=>c[0])))-2,tx1=Math.ceil(Math.max(...cs.map(c=>c[0])))+2,ty0=Math.floor(Math.min(...cs.map(c=>c[1])))-2,ty1=Math.ceil(Math.max(...cs.map(c=>c[1])))+2;
-  drawn=[];visible=new Set();const items=[],under=new Map();
+  drawn=[];visible=new Set();const items=[],top=[],occupied=new Set();
   // objetos
   for(let gx=Math.floor(tx0/CELL)-1;gx<=Math.ceil(tx1/CELL);gx++)for(let gy=Math.floor(ty0/CELL)-1;gy<=Math.ceil(ty1/CELL);gy++){
     if(h32(gx,gy,layout)>WS.dens)continue;let sl;
@@ -319,20 +376,25 @@ function drawWorld(){const W=low.width,H=low.height,cx=Math.floor(cam.x),cy=Math
     if(exterior){const l0=cornerLevel(ax,ay);let flat=true;for(let i=0;i<=sp.fw&&flat;i++)for(let j=0;j<=sp.fd;j++)if(cornerLevel(ax+i,ay+j)!==l0){flat=false;break}
       if(!flat)continue;const f=fieldsAt((ax+sp.fw/2)*T,(ay+sp.fd/2)*T);if(f[0]<SEA+.004)continue;z=l0*STEP}
     const[im,ox,oy,iw,ih]=objImage(sl),dx=32*(ax-ay)-cx-ox,dy=16*(ax+ay)-cy-oy-z;if(dx>W||dy>H||dx+iw<0||dy+ih<0)continue;
-    const dep=ax+sp.fw/2+ay+sp.fd/2,o={sl,im,dx,dy,gx,gy,depth:dep,k:1};drawn.push(o);items.push(o);
-    if(exterior)for(let i=0;i<sp.fw;i++)for(let j=0;j<sp.fd;j++)under.set((ax+i)+","+(ay+j),dep-.001)}
-  // suelo
+    const o={sl,im,dx,dy,gx,gy,k:1,r:[ax,ax+sp.fw,ay,ay+sp.fd],b:[dx,dx+iw,dy,dy+ih]};drawn.push(o);items.push(o);
+    for(let i=0;i<sp.fw;i++)for(let j=0;j<sp.fd;j++)occupied.add((ax+i)+","+(ay+j))}
+  // suelo (+ vegetación decorativa)
   for(let tx=tx0;tx<=tx1;tx++)for(let ty=ty0;ty<=ty1;ty++){const sx=32*(tx-ty)-cx,sy=16*(tx+ty)-cy;if(sx<-32||sx>W+32||sy<-34||sy>H+120)continue;
-    const key=tx+","+ty;items.push({k:0,tx,ty,sx,sy,key,depth:under.has(key)?under.get(key):tx+ty+1})}
-  if(exterior)faunaItems(items,cx,cy);
-  items.sort((a,b)=>a.depth-b.depth||a.k-b.k);
-  for(const it of items){if(it.k===1){drawObj(it);continue}if(it.k===2){it.draw();continue}
+    const key=tx+","+ty,hm=exterior?Math.max(cornerLevel(tx,ty),cornerLevel(tx+1,ty),cornerLevel(tx+1,ty+1),cornerLevel(tx,ty+1))*STEP:0;
+    items.push({k:0,tx,ty,sx,sy,key,r:[tx,tx+1,ty,ty+1],b:[sx-32,sx+32,sy-hm,sy+33]});
+    if(exterior&&WS.veg>0&&!occupied.has(key)&&h32(tx,ty,layout+101)<WS.veg*.85){const ti=tileInfo(tx,ty);if(ti.water)continue;
+      const L=decorFor(ti.bio);if(!L.length)continue;const s=L[Math.floor(h32(tx,ty,layout+103)*L.length)],u=.2+h32(tx,ty,layout+107)*.6,v=.2+h32(tx,ty,layout+109)*.6,X=(tx+u)*T,Y=(ty+v)*T;
+      if(fieldsAt(X,Y)[0]<SEA+.006)continue;const g=heightAt(X,Y),X0=X-16,Y0=Y-16,ddx=Math.round(X0-Y0-cx-s.originX),ddy=Math.round((X0+Y0)/2-g-cy-s.originY);
+      items.push({k:1,r:[tx+u-.15,tx+u+.15,ty+v-.15,ty+v+.15],b:[ddx,ddx+s.width,ddy,ddy+s.height],draw:()=>lctx.drawImage(s.cv,ddx,ddy)})}}
+  if(exterior)faunaItems(items,top,cx,cy);
+  for(const it of isoSort(items)){if(it.draw){it.draw();continue}if(it.k===1){drawObj(it);continue}
     if(!exterior){lctx.drawImage(TILES[WS.check?((it.tx+it.ty)&1):0],it.sx-32,it.sy);continue}
     let tt=terrainCache.get(it.key);
     if(!tt&&performance.now()<gdl){tt=makeTerrainTile(it.tx,it.ty);terrainCache.set(it.key,tt);if(terrainCache.size>5000)for(const k of[...terrainCache.keys()].slice(0,1200))terrainCache.delete(k)}
     if(tt){lctx.drawImage(tt.c,it.sx-32,it.sy-tt.hmax);continue}
     const ph=placeholderTile(it.tx,it.ty);lctx.fillStyle=ph.col;lctx.beginPath();
     [[0,0,0],[1,0,1],[1,1,2],[0,1,3]].forEach(([u,v,i],n)=>{const X=it.sx+32*(u-v),Y=it.sy+16*(u+v)-ph.h[i];n?lctx.lineTo(X,Y):lctx.moveTo(X,Y)});lctx.closePath();lctx.fill()}
+  for(const it of top)it.draw();
   wctx.imageSmoothingEnabled=false;wctx.drawImage(low,0,0,wcv.width,wcv.height)}
 const DIRV=[[2,1],[-2,1],[0,1],[1,0]];
 function loop(t){requestAnimationFrame(loop);if(current!=="mundo")return;const dt=loop.last?Math.min(.05,(t-loop.last)/1000):0;loop.last=t;
@@ -351,6 +413,7 @@ function wslider(id,key,fmtv,on){const i=$(id),o=$(id+"V");i.value=WS[key];o.tex
 wslider("wspeed","speed",v=>v===0?"quieto":"×"+fmt(v));wslider("wzoom","zoom",v=>"×"+v,sizeWorld);
 wslider("wdens","dens",v=>Math.round(v*100)+" %");wslider("wpool","pool",v=>String(v));
 wslider("whue","hue",v=>(v>0?"+":"")+v+"°",reView);wslider("walpha","alpha",v=>Math.round(v*100)+" %",reView);
+wslider("wveg","veg",v=>Math.round(v*100)+" %");
 wslider("wdraw","draw",v=>Math.round(8*2**(v-1))+" px/cuadro");wslider("wpar","par",v=>String(v));wslider("wevery","every",v=>fmt(v)+" s");
 $("wdir").value=WS.dir;$("wdir").addEventListener("change",e=>{WS.dir=+e.target.value;save()});
 $("wcheck").checked=WS.check;$("wcheck").addEventListener("change",e=>{WS.check=e.target.checked;save()});
@@ -499,6 +562,11 @@ function seSave(asNew){if(!SE.kids.length){$("seNote").textContent="Añade al me
 $("seSave").addEventListener("click",()=>seSave(false));$("seSaveNew").addEventListener("click",()=>seSave(true));
 $("seJson").addEventListener("click",()=>{if(!SE.kids.length)return;offerFile(JSON.stringify(furniJSON(seItem()),null,2),"suprafurni.json",m=>$("seNote").textContent=m)});
 $("sePng").addEventListener("click",()=>{if(!SE.kids.length)return;const j=makeSupraJob(seItem());j.step();offer(spriteCanvas(j.finish()),"suprafurni.png")});
+{const th=$("seTheme"),bi=$("seBio");Object.entries(THEMES).forEach(([k,v])=>th.add(new Option(v.name,k)));MIX.forEach(k=>bi.add(new Option(BIOMES[k].name,k)));
+  const sync=()=>{const b=Object.entries(THEMES[th.value].bio).sort((a,c)=>c[1]-a[1])[0][0];bi.value=b};th.addEventListener("change",sync);sync();
+  $("seGen").addEventListener("click",()=>{const r=rng((Math.random()*2e9|0)+1),it=genComposition(th.value,r,bi.value);
+    SE.kids=it.children.map((c,i)=>({...c,uid:uid(),born:i}));SE.born=SE.kids.length;SE.id=null;SE.name=it.name;SE.sel=null;SE.grid=Math.max(SE.grid,3);
+    $("seGrid").value=SE.grid;$("seGridV").textContent=SE.grid+"×"+SE.grid;seDraw();$("seNote").textContent=`Conjunto «${it.name}» generado con ${it.children.length} piezas. Ajusta, reordena capas o genera otro.`})}
 function openSupraEditor(it){SE.id=cat.items.some(i=>i.id===it.id)?it.id:null;SE.name=it.name||"Suprafurni";
   SE.kids=it.children.map(c=>({...JSON.parse(JSON.stringify(c)),uid:uid()}));SE.born=Math.max(0,...SE.kids.map(k=>k.born+1));
   const fp=supraFoot({...it,rot:0});SE.grid=Math.min(6,Math.max(SE.grid,fp[0],fp[1]));$("seGrid").value=SE.grid;$("seGridV").textContent=SE.grid+"×"+SE.grid;
@@ -596,22 +664,26 @@ function heightAt(X,Y){const tx=Math.floor(X/T),ty=Math.floor(Y/T),u=X/T-tx,v=Y/
 const isWater=(X,Y)=>fieldsAt(X,Y)[0]<SEA-.004;
 const rotOf=(vx,vy)=>Math.abs(vx)>=Math.abs(vy)?(vx>=0?0:2):(vy>=0?1:3);
 function spawnFauna(){if(!view)return;const{W,H,cx,cy}=view;
-  // punto al azar en pantalla → mundo (sobre el plano z=0; suficiente para elegir lugar)
-  const sx=Math.random()*W+cx,sy=Math.random()*(H+40)+cy,X=sy+sx/2,Y=sy-sx/2,f=fieldsAt(X,Y),water=f[0]<SEA-.004,b=biomeAt(...f);
+  let sx=Math.random()*W+cx,sy=Math.random()*(H+40)+cy,X=sy+sx/2,Y=sy-sx/2,f=fieldsAt(X,Y);const water=f[0]<SEA-.004,b=biomeAt(...f);
   const opts=Object.entries(SPECIES).filter(([k,s])=>WS.species[k]&&(s.where==="any"||(s.where==="water")===water)&&s.bio[b]);
   let tot=opts.reduce((a,[,s])=>a+s.bio[b],0);if(!tot)return;let r=Math.random()*tot,sp=opts[0][0];for(const[k,s]of opts)if((r-=s.bio[b])<0){sp=k;break}
-  const V=SPECIES[sp].vars(b),v=V[Math.floor(Math.random()*V.length)],a=Math.random()*Math.PI*2,n={sp,v,X,Y,z:0,alt:0,head:a,t:0,timer:0,state:"idle",fr:0,seed:Math.random()*1000,sub:sp==="cocodrilo"};
-  if(sp==="ave"){n.alt=60+Math.random()*40;n.speed=46+Math.random()*20;n.head=Math.random()<.5?0:Math.PI/2+(Math.random()-.5)*.6}
-  if(sp==="mariposa")n.alt=8+Math.random()*10;if(sp==="murcielago")n.alt=22+Math.random()*18;
-  if(sp==="topo"){const l0=cornerLevel(Math.floor(X/T),Math.floor(Y/T));n.timer=1+Math.random()*3}
-  if(sp==="insectos")n.alt=4+Math.random()*6;
+  const V=SPECIES[sp].vars(b),v=V[Math.floor(Math.random()*V.length)],n={sp,v,X,Y,z:0,alt:0,head:Math.random()*Math.PI*2,t:0,timer:0,state:"idle",fr:0,seed:Math.random()*1000,sub:sp==="cocodrilo",born:0,fxCol:water?[170,215,245]:b==="nieve"?[235,242,250]:b==="desierto"?[226,204,150]:[120,170,80]};
+  if(sp==="ave"){// las aves entran volando desde un borde, sin remolino
+    const left=Math.random()<.5;sx=(left?-30:W+30)+cx;sy=Math.random()*H*.6+cy;n.X=sy+sx/2;n.Y=sy-sx/2;const dX=(W/2+cx-sx),dY=(H/2+cy-sy);n.head=Math.atan2(dY-dX/2,dY+dX/2)+(Math.random()-.5)*.6;
+    n.alt=60+Math.random()*40;n.speed=46+Math.random()*20;n.born=9}
+  if(sp==="mariposa")n.alt=8+Math.random()*10;if(sp==="murcielago")n.alt=22+Math.random()*18;if(sp==="topo")n.timer=1+Math.random()*3;if(sp==="insectos")n.alt=4+Math.random()*6;
   fauna.push(n)}
-function faunaUpdate(now,dt){pumpFauna(performance.now()+2.5);if(!view)return;
-  const target=Math.round(WS.fauna*28);while(fauna.length<target&&Math.random()<.5)spawnFauna();
+const FX_IN=.8,FX_OUT=.7;
+function faunaUpdate(now,dt){pumpFauna(performance.now()+2);pumpDecor(performance.now()+2.5);if(!view)return;
+  const target=Math.round(WS.fauna*28);if(fauna.filter(n=>n.dying==null).length<target&&Math.random()<.25)spawnFauna();
+  let extra=fauna.filter(n=>n.dying==null).length-target;
   const{W,H,cx,cy}=view;
-  for(let i=fauna.length-1;i>=0;i--){const n=fauna[i];n.t+=dt;
-    const sx=n.X-n.Y-cx,sy=(n.X+n.Y)/2-cy;if(sx<-200||sx>W+200||sy<-260||sy>H+260||!WS.species[n.sp]||fauna.length>target+4){fauna.splice(i,1);continue}
-    const step=(spd,turn)=>{n.head+=(noise3(n.t*.7,n.seed,0,3)-.5)*turn*dt;const nx=n.X+Math.cos(n.head)*spd*dt,ny=n.Y+Math.sin(n.head)*spd*dt;return[nx,ny]};
+  for(let i=fauna.length-1;i>=0;i--){const n=fauna[i];n.t+=dt;n.born+=dt;
+    const sx=n.X-n.Y-cx,sy=(n.X+n.Y)/2-cy;if(sx<-220||sx>W+220||sy<-280||sy>H+280){fauna.splice(i,1);continue}
+    if(n.dying==null&&(extra>0||!WS.species[n.sp])){n.dying=0;extra--}
+    if(n.dying!=null){n.dying+=dt;if(n.dying>FX_OUT){fauna.splice(i,1);continue}}
+    if(n.born<FX_IN*.55)continue;
+    const step=(spd,turn)=>{n.head+=(noise3(n.t*.7,n.seed,0,3)-.5)*turn*dt;return[n.X+Math.cos(n.head)*spd*dt,n.Y+Math.sin(n.head)*spd*dt]};
     switch(n.sp){
       case"mariposa":{const[x,y]=step(12,9);n.X=x;n.Y=y;n.z=n.alt+Math.sin(n.t*3+n.seed)*3;n.fr=Math.floor(n.t*9)%2;break}
       case"murcielago":{if(Math.random()<dt*1.5)n.head+=(Math.random()-.5)*2.5;const[x,y]=step(30,6);n.X=x;n.Y=y;n.z=n.alt+Math.sin(n.t*5)*4;n.fr=Math.floor(n.t*11)%2;break}
@@ -620,23 +692,31 @@ function faunaUpdate(now,dt){pumpFauna(performance.now()+2.5);if(!view)return;
         else{n.u+=dt/.36;n.fr=1;const nx=n.X+Math.cos(n.head)*30*dt,ny=n.Y+Math.sin(n.head)*30*dt;if(isWater(nx,ny))n.head+=Math.PI;else{n.X=nx;n.Y=ny}
           n.z=Math.sin(Math.PI*Math.min(1,n.u))*6;if(n.u>=1){n.u=0;if(--n.hops<=0){n.state="idle";n.timer=.8+Math.random()*2.5}}}break}
       case"topo":{n.timer-=dt;if(n.timer<=0){n.fr=1-n.fr;n.timer=n.fr?1.2+Math.random()*1.5:2+Math.random()*4}break}
-      case"pez":{if(n.state==="jump"){n.u+=dt/.8;n.z=Math.sin(Math.PI*n.u)*12;const nx=n.X+Math.cos(n.head)*22*dt,ny=n.Y+Math.sin(n.head)*22*dt;n.X=nx;n.Y=ny;if(n.u>=1){n.state="swim";n.z=0}}
+      case"pez":{if(n.state==="jump"){n.u+=dt/.8;n.z=Math.sin(Math.PI*n.u)*12;n.X+=Math.cos(n.head)*22*dt;n.Y+=Math.sin(n.head)*22*dt;if(n.u>=1){n.state="swim";n.z=0}}
         else{const[x,y]=step(14,3);if(isWater(x,y)){n.X=x;n.Y=y}else n.head+=Math.PI*(.6+Math.random()*.8);if(Math.random()<dt*.12&&isWater(n.X+Math.cos(n.head)*18,n.Y+Math.sin(n.head)*18)){n.state="jump";n.u=0}}
         n.fr=Math.floor(n.t*5)%2;break}
       case"cocodrilo":{if((n.timer-=dt)<=0){n.moving=!n.moving;n.timer=n.moving?2+Math.random()*4:2+Math.random()*5}
         if(n.moving){const[x,y]=step(6,1.5);if(isWater(x,y)){n.X=x;n.Y=y}else n.head+=Math.PI*.8}n.sub=isWater(n.X,n.Y);n.fr=Math.floor(n.t*(n.moving?2.5:.6))%2;break}
       case"insectos":{n.X+=Math.cos(n.t*.3+n.seed)*2*dt;n.Y+=Math.sin(n.t*.27+n.seed)*2*dt;break}}}}
-function faunaItems(items,cx,cy){for(const n of fauna){const g=n.sp==="pez"||n.sp==="cocodrilo"&&n.sub?0:heightAt(n.X,n.Y),gx=n.X-n.Y-cx,gy=(n.X+n.Y)/2-g-cy,dep=n.X/T+n.Y/T+.01;
-    if(n.sp==="insectos"){items.push({k:2,depth:dep,draw:()=>{const glow=n.v.kind==="luciernaga";
+/** Mini remolino: partículas en espiral que suben (aparición) o bajan (desaparición). */
+function drawSwirl(gx,gy,u,col,reverse){const k=reverse?1-u:u;
+  for(let i=0;i<20;i++){const a=u*16+i*.9,rad=(reverse?2+8*u:9*(1-u)+1.5)*(.6+(i%3)*.2),hgt=(i/20)*18*(reverse?1-u*.5:.4+u*.6),alpha=Math.min(1,(reverse?1-u:1.2-u))*(.55+.45*(i%2));
+    const x=Math.round(gx+Math.cos(a)*rad),y=Math.round(gy+Math.sin(a)*rad*.5-hgt),big=i%3===0;
+    lctx.fillStyle=`rgba(${col[0]},${col[1]},${col[2]},${Math.max(0,Math.min(1,alpha*1.3))})`;lctx.fillRect(x,y,big?2:1,big?2:1);
+    if(big){lctx.fillStyle=`rgba(255,255,255,${Math.max(0,alpha*.8)})`;lctx.fillRect(x,y,1,1)}}}
+function faunaItems(items,top,cx,cy){for(const n of fauna){const g=n.sp==="pez"||n.sp==="cocodrilo"&&n.sub?0:heightAt(n.X,n.Y),gx=n.X-n.Y-cx,gy=(n.X+n.Y)/2-g-cy,X=n.X/T,Y=n.Y/T,R=[X-.08,X+.08,Y-.08,Y+.08];
+    const fxIn=n.born<FX_IN?n.born/FX_IN:1,fxOut=n.dying!=null?n.dying/FX_OUT:0,show=fxIn>.55&&fxOut<.5,alpha=Math.min(fxIn<1?(fxIn-.55)/.45:1,1-fxOut*2);
+    if(fxIn<1||fxOut>0){const u=fxIn<1?fxIn:fxOut,rev=fxIn>=1;items.push({k:2,r:R,b:[gx-12,gx+12,gy-24,gy+6],ord:2,draw:()=>drawSwirl(gx,gy,u,n.fxCol,rev)})}
+    if(!show)continue;
+    if(n.sp==="insectos"){items.push({k:2,r:R,b:[gx-10,gx+10,gy-20,gy+6],draw:()=>{const glow=n.v.kind==="luciernaga";lctx.globalAlpha=alpha;
         for(let i=0;i<9;i++){const ox=(noise3(n.t*1.6,i*3.1,n.seed,1)-.5)*16,oy=(noise3(n.t*1.6,i*3.1+40,n.seed,1)-.5)*9,oz=n.alt+(noise3(n.t*1.3,i,n.seed+9,1)-.5)*8;
           if(glow){const a=.35+.65*Math.max(0,Math.sin(n.t*3+i*1.7));lctx.fillStyle=`rgba(255,241,168,${a*.35})`;lctx.fillRect(Math.round(gx+ox)-1,Math.round(gy+oy-oz)-1,3,3);lctx.fillStyle=`rgba(255,250,210,${a})`}
-          else lctx.fillStyle="rgba(30,30,34,.85)";lctx.fillRect(Math.round(gx+ox),Math.round(gy+oy-oz),1,1)}}});continue}
-    const rot=n.sp==="topo"?0:rotOf(Math.cos(n.head),Math.sin(n.head)),s=faunaSprite(n.sp,n.v,rot,n.fr,n.sp==="cocodrilo"&&n.sub);
-    const sp=SPECIES[n.sp];
-    if(sp.shadow){const a=Math.max(.08,.28-n.z/400);items.push({k:2,depth:dep-.004,draw:()=>{lctx.fillStyle=`rgba(0,0,0,${a})`;lctx.fillRect(Math.round(gx)-3,Math.round(gy),7,1);lctx.fillRect(Math.round(gx)-2,Math.round(gy)-1,5,1);lctx.fillRect(Math.round(gx)-2,Math.round(gy)+1,5,1)}})}
-    if(!s)continue;const dx=Math.round(gx-16+16-s.originX+(16-16)),X0=n.X-16,Y0=n.Y-16,sx=X0-Y0-cx-s.originX,sy=(X0+Y0)/2-g-n.z-cy-s.originY,
-      under=n.sp==="pez"&&n.z<.5;
-    items.push({k:2,depth:sp.fly&&n.z>30?1e9:dep,draw:()=>{if(under)lctx.globalAlpha=.55;lctx.drawImage(s.cv,Math.round(sx),Math.round(sy));lctx.globalAlpha=1}})}}
+          else lctx.fillStyle="rgba(30,30,34,.85)";lctx.fillRect(Math.round(gx+ox),Math.round(gy+oy-oz),1,1)}lctx.globalAlpha=1}});continue}
+    const rot=n.sp==="topo"?0:rotOf(Math.cos(n.head),Math.sin(n.head)),s=faunaSprite(n.sp,n.v,rot,n.fr,n.sp==="cocodrilo"&&n.sub),sp=SPECIES[n.sp];
+    if(sp.shadow){const a=Math.max(.08,.28-n.z/400)*alpha;items.push({k:2,r:R,b:[gx-4,gx+4,gy-2,gy+2],ord:0,draw:()=>{lctx.fillStyle=`rgba(0,0,0,${a})`;lctx.fillRect(Math.round(gx)-3,Math.round(gy),7,1);lctx.fillRect(Math.round(gx)-2,Math.round(gy)-1,5,1);lctx.fillRect(Math.round(gx)-2,Math.round(gy)+1,5,1)}})}
+    if(!s)continue;const X0=n.X-16,Y0=n.Y-16,sx=Math.round(X0-Y0-cx-s.originX),sy=Math.round((X0+Y0)/2-g-n.z-cy-s.originY),under=n.sp==="pez"&&n.z<.5;
+    const it={k:2,r:R,b:[sx,sx+s.width,sy,sy+s.height],ord:1,draw:()=>{lctx.globalAlpha=(under?.55:1)*Math.max(0,alpha);lctx.drawImage(s.cv,sx,sy);lctx.globalAlpha=1}};
+    if(sp.fly&&n.z>30)top.push(it);else items.push(it)}}
 {const i=$("wfauna"),o=$("wfaunaV");const f=()=>o.textContent=WS.fauna?Math.round(WS.fauna*28)+" criaturas":"sin fauna";i.value=WS.fauna;f();
   i.addEventListener("input",()=>{WS.fauna=+i.value;f();save()});
   const h=$("wspecies");for(const[k,s]of Object.entries(SPECIES)){const b=document.createElement("button");b.className="chip";b.textContent=s.name;b.setAttribute("aria-pressed",!!WS.species[k]);

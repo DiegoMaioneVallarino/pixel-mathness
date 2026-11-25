@@ -82,6 +82,7 @@
         <label class="sw">Rejilla / cuadros <input type="checkbox" class="pt-toggle" id="wcheck"></label>
       </div></div>
       <div class="pt-layer"><div class="pt-layer__in pad">
+        <div class="param"><label for="wveg">Vegetación</label><span class="pt-exp-param-value" id="wvegV"></span><input class="pt-exp-param-range" type="range" id="wveg" min="0" max="1" step="0.05"></div>
         <div class="param"><label for="wfauna">Fauna</label><span class="pt-exp-param-value" id="wfaunaV"></span><input class="pt-exp-param-range" type="range" id="wfauna" min="0" max="1" step="0.05"></div>
         <div class="chips" id="wspecies" aria-label="Especies"></div>
       </div></div>
@@ -184,6 +185,11 @@
           <div class="pt-layer"><div class="pt-layer__in pad">
             <div class="param"><label for="seDz">Altura extra de la pieza</label><span class="pt-exp-param-value" id="seDzV"></span><input class="pt-exp-param-range" type="range" id="seDz" min="-16" max="64" step="1"></div>
             <div class="field"><span>Paso de movimiento</span><div class="pt-input"><select id="seStep"><option value="1">1 baldosa</option><option value="0.5">½ baldosa</option><option value="0.25">¼ de baldosa</option></select></div></div>
+          </div></div>
+          <div class="pt-layer"><div class="pt-layer__in pad">
+            <div class="field"><span>Generar conjunto</span><div class="pt-input"><select id="seTheme"></select></div></div>
+            <div class="field"><span>Bioma</span><div class="pt-input"><select id="seBio"></select></div></div>
+            <button class="pt-ring-btn pt-btn--orange" id="seGen" style="width:100%"><span class="pt-ring__inner"><span class="pt-ring__face">Generar suprafurni</span></span></button>
           </div></div>
           <div class="pt-layer"><div class="pt-layer__in pad">
             <div class="param"><label for="seGrid">Tamaño del plano</label><span class="pt-exp-param-value" id="seGridV"></span><input class="pt-exp-param-range" type="range" id="seGrid" min="2" max="6" step="1"></div>
