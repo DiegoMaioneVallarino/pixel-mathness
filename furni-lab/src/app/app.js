@@ -14,7 +14,7 @@ const PRESETS={marca:["#0894ff","#c959dd","#ff2e54","#ff9004","#0066ff","#ff3fcd
   atardecer:["#ff5e5b","#ff9e44","#ffd166","#8a4fc4","#3d2c8d","#ef476f"],bosque:["#2f5d3a","#6b8f4e","#a3b18a","#8b5e34","#d4a373","#3a4a3f"],
   oceano:["#023e8a","#0077b6","#00b4d8","#90e0ef","#caf0f8","#03045e"],mono:["#151515","#4c4c4c","#707070","#999999","#c9c9c9","#f2f2f2"]};
 const PRESET_NAMES=[["marca","Marca Pairtial"],["pastel","Pastel"],["atardecer","Atardecer"],["bosque","Bosque"],["oceano","Océano"],["mono","Monocromo"],["custom","Personalizada"]];
-const WS=Object.assign({speed:2,zoom:innerWidth<600?2:3,dens:.6,pool:28,dir:0,check:false,draw:5,par:3,every:2.5,renew:true,src:"random",pal:"marca",palette:PRESETS.marca.slice(),palAll:false,hue:0,alpha:1,bio:"mixto"},store.W||{});
+const WS=Object.assign({speed:2,zoom:innerWidth<600?2:3,dens:.6,pool:28,dir:0,check:false,draw:5,par:3,every:2.5,renew:true,src:"random",pal:"marca",palette:PRESETS.marca.slice(),palAll:false,hue:0,alpha:1,bio:"mixto",fauna:.5,species:null},store.W||{});
 if(!Array.isArray(WS.palette)||WS.palette.length!==6||!WS.palette.every(c=>/^#[0-9a-f]{6}$/i.test(c)))WS.palette=PRESETS.marca.slice();
 if(!PRESET_NAMES.some(p=>p[0]===WS.pal))WS.pal="marca";
 const save=()=>{try{localStorage.setItem("furnilab2",JSON.stringify({type,G,P:allP,W:WS}))}catch(e){}};
@@ -40,7 +40,7 @@ function toggle(host,[k,lab],obj,on){const l=document.createElement("label");l.c
 function select(host,[k,lab,opts],obj,on){const d=document.createElement("div");d.className="field";
   d.innerHTML=`<span>${esc(lab)}</span><div class="pt-input"><select>${opts.map(([v,t])=>`<option value="${v}">${esc(t)}</option>`).join("")}</select></div>`;
   const s=d.querySelector("select");s.value=obj[k];s.addEventListener("change",()=>{obj[k]=s.value;on()});host.appendChild(d)}
-const CATS=[["interior","Interior"],["arboles","Árboles"],["vegetacion","Vegetación"],["rocas","Rocas y relieve"],["vallas","Vallas y muros"],["exterior","Estructuras"],["granja","Granja"],["bloques","Bloques"],["construcciones","Construcciones"]];
+const CATS=[["interior","Interior"],["arboles","Árboles"],["vegetacion","Vegetación"],["rocas","Rocas y relieve"],["vallas","Vallas y muros"],["exterior","Estructuras"],["granja","Granja"],["bloques","Bloques"],["construcciones","Construcciones"],["fauna","Fauna"]];
 let curCat=(FURNI[type]&&FURNI[type].cat)||"interior";
 function buildCats(){const h=$("typeCats");h.innerHTML="";CATS.forEach(([k,n])=>{const b=document.createElement("button");b.className="chip";
   b.textContent=`${n} · ${Object.values(FURNI).filter(f=>f.cat===k).length}`;b.setAttribute("aria-pressed",k===curCat);
@@ -205,7 +205,7 @@ function paintErase(sl){const s=sl.s,src=sl.eview,d=sl.eimg.data,e=Math.max(0,sl
     else{d[o]=src[o];d[o+1]=src[o+1];d[o+2]=src[o+2];d[o+3]=src[o+3]}}
   sl.ecv.getContext("2d").putImageData(sl.eimg,0,0)}
 
-function update(now,dt){ensureSlots();
+function update(now,dt){ensureSlots();if(isExterior())faunaUpdate(now,dt);
   let building=slots.filter(s=>s.state==="building").length;
   const order=slots.filter(s=>s.state==="queued").sort((a,b)=>(visible.has(b.i)-visible.has(a.i))||a.i-b.i);
   for(const sl of order){if(building>=WS.par)break;startBuild(sl,now);if(sl.state==="building")building++}
@@ -305,7 +305,7 @@ function drawWorld(){const W=low.width,H=low.height,cx=Math.floor(cam.x),cy=Math
   lctx.fillStyle="#1c1c1c";lctx.fillRect(0,0,W,H);
   const inv=(sx,sy)=>[((sy+cy)/16+(sx+cx)/32)/2,((sy+cy)/16-(sx+cx)/32)/2];
   const cs=[inv(0,-40),inv(W,-40),inv(0,H+200),inv(W,H+200)],CELL=exterior?2:3;
-  const tx0=Math.floor(Math.min(...cs.map(c=>c[0])))-2,tx1=Math.ceil(Math.max(...cs.map(c=>c[0])))+2,ty0=Math.floor(Math.min(...cs.map(c=>c[1])))-2,ty1=Math.ceil(Math.max(...cs.map(c=>c[1])))+2;
+  view={W,H,cx,cy};const tx0=Math.floor(Math.min(...cs.map(c=>c[0])))-2,tx1=Math.ceil(Math.max(...cs.map(c=>c[0])))+2,ty0=Math.floor(Math.min(...cs.map(c=>c[1])))-2,ty1=Math.ceil(Math.max(...cs.map(c=>c[1])))+2;
   drawn=[];visible=new Set();const items=[],under=new Map();
   // objetos
   for(let gx=Math.floor(tx0/CELL)-1;gx<=Math.ceil(tx1/CELL);gx++)for(let gy=Math.floor(ty0/CELL)-1;gy<=Math.ceil(ty1/CELL);gy++){
@@ -324,8 +324,9 @@ function drawWorld(){const W=low.width,H=low.height,cx=Math.floor(cam.x),cy=Math
   // suelo
   for(let tx=tx0;tx<=tx1;tx++)for(let ty=ty0;ty<=ty1;ty++){const sx=32*(tx-ty)-cx,sy=16*(tx+ty)-cy;if(sx<-32||sx>W+32||sy<-34||sy>H+120)continue;
     const key=tx+","+ty;items.push({k:0,tx,ty,sx,sy,key,depth:under.has(key)?under.get(key):tx+ty+1})}
+  if(exterior)faunaItems(items,cx,cy);
   items.sort((a,b)=>a.depth-b.depth||a.k-b.k);
-  for(const it of items){if(it.k===1){drawObj(it);continue}
+  for(const it of items){if(it.k===1){drawObj(it);continue}if(it.k===2){it.draw();continue}
     if(!exterior){lctx.drawImage(TILES[WS.check?((it.tx+it.ty)&1):0],it.sx-32,it.sy);continue}
     let tt=terrainCache.get(it.key);
     if(!tt&&performance.now()<gdl){tt=makeTerrainTile(it.tx,it.ty);terrainCache.set(it.key,tt);if(terrainCache.size>5000)for(const k of[...terrainCache.keys()].slice(0,1200))terrainCache.delete(k)}
@@ -563,6 +564,83 @@ $("clipApply").addEventListener("click",()=>{if(!clip||!clip.colors.length)retur
   else{pick={};keys.forEach((k,i)=>pick[k]=src[i%src.length])}
   for(const k of keys){let c=pick[k];if(hueOnly){const a=parseInt(c.slice(1),16),b=parseInt(P[k].slice(1),16),[h,s]=rgb2hsl(a>>16&255,a>>8&255,a&255),[,,l]=rgb2hsl(b>>16&255,b>>8&255,b&255);c=hex(hsl2rgb(h,s,l))}P[k]=c}
   buildPanel();schedule();note("Colorimetría de «"+clip.from+"» aplicada a "+FURNI[type].name+".")});
+
+
+// ============================== FAUNA (NPC) ==============================
+// Cada especie: dónde aparece (bioma, agua/tierra), cómo se mueve y qué variante de color usa.
+let view=null;const fauna=[];
+const SPECIES={
+  mariposa:{name:"Mariposas",fly:true,shadow:true,where:"land",bio:{pradera:5,bosque:1.5,costa:1.5,pantano:1},vars:()=>WS.palette.slice(0,4).map(c=>({c1:c}))},
+  murcielago:{name:"Murciélagos",fly:true,shadow:true,where:"land",bio:{bosque:2.5,pantano:2.5,nieve:1,desierto:1},vars:()=>[{},{c1:"#4a3a2f",c2:"#6a5a4a"}]},
+  conejo:{name:"Conejos",where:"land",bio:{pradera:4,bosque:2.5,nieve:3,desierto:1},vars:b=>b==="nieve"?[{c1:"#f2f2f2",c2:"#ffffff"}]:b==="desierto"?[{c1:"#c9a06a"}]:[{},{c1:"#8a8f96"}]},
+  topo:{name:"Topos",where:"land",bio:{pradera:3,bosque:2},vars:()=>[{}]},
+  pez:{name:"Peces",where:"water",bio:{pradera:3,bosque:3,costa:4,pantano:2,desierto:2,nieve:2},vars:()=>[{},{c1:"#9aa3ad",c2:"#cfe6f5"},{c1:"#ffd23f",c2:"#ff9004"}]},
+  ave:{name:"Aves",fly:true,shadow:true,where:"any",bio:{pradera:3,bosque:3,costa:3,desierto:1,nieve:1.5,pantano:1.5},vars:()=>[{},{c1:"#c8383f",c2:"#9a2a30"},{c1:"#8a6a45",c2:"#6b4a2f",c3:"#e0b84a"},{c1:"#f2f2f2",c2:"#c9c9c9"}]},
+  cocodrilo:{name:"Cocodrilos",where:"water",bio:{pantano:4,costa:1},vars:()=>[{}]},
+  insectos:{name:"Insectos",where:"land",bio:{pantano:4,bosque:3,pradera:2,desierto:.5},vars:b=>b==="pantano"?[{kind:"mosquito"}]:[{kind:"luciernaga"},{kind:"mosquito"}]}};
+if(!WS.species||typeof WS.species!=="object")WS.species=Object.fromEntries(Object.keys(SPECIES).map(k=>[k,true]));
+for(const k in SPECIES)if(!(k in WS.species))WS.species[k]=true;
+// sprites de fauna: 4 direcciones × 2 fotogramas, generados por partes y guardados
+const faunaSprites=new Map(),faunaQ=[];let faunaJob=null;
+const FS={...gdef(),self:false};
+function faunaKey(sp,v,rot,fr,sub){return sp+"|"+JSON.stringify(v)+"|"+rot+"|"+fr+"|"+(sub?1:0)}
+function faunaSprite(sp,v,rot,fr,sub){const k=faunaKey(sp,v,rot,fr,sub),s=faunaSprites.get(k);if(s)return s;if(!faunaSprites.has(k)){faunaSprites.set(k,null);faunaQ.push({k,sp,v,rot,fr,sub})}return null}
+function pumpFauna(deadline){while(performance.now()<deadline){if(!faunaJob){const q=faunaQ.shift();if(!q)return;
+      const p=Object.assign(defaults(q.sp),q.v,{frame:q.fr});if(q.sp==="cocodrilo")p.sub=!!q.sub;const S={...FS,floor:!SPECIES[q.sp].fly&&q.sp!=="pez"&&!q.sub};
+      const keep=G;G=S;faunaJob={q,job:makeJob(FURNI[q.sp].build(p),q.rot,S)};G=keep}
+    faunaJob.job.step(Infinity,deadline);if(faunaJob.job.done){const s=faunaJob.job.finish();s.cv=spriteCanvas(s);faunaSprites.set(faunaJob.q.k,s);faunaJob=null}}}
+// altura del terreno en cualquier punto (misma triangulación que las baldosas)
+function heightAt(X,Y){const tx=Math.floor(X/T),ty=Math.floor(Y/T),u=X/T-tx,v=Y/T-ty,h=[cornerLevel(tx,ty),cornerLevel(tx+1,ty),cornerLevel(tx+1,ty+1),cornerLevel(tx,ty+1)].map(l=>l*STEP);
+  if(Math.abs(h[0]-h[2])<=Math.abs(h[1]-h[3]))return u>=v?h[0]+(h[1]-h[0])*u+(h[2]-h[1])*v:h[0]+(h[2]-h[3])*u+(h[3]-h[0])*v;
+  return u+v<=1?h[0]+(h[1]-h[0])*u+(h[3]-h[0])*v:h[2]+(h[3]-h[2])*(1-u)+(h[1]-h[2])*(1-v)}
+const isWater=(X,Y)=>fieldsAt(X,Y)[0]<SEA-.004;
+const rotOf=(vx,vy)=>Math.abs(vx)>=Math.abs(vy)?(vx>=0?0:2):(vy>=0?1:3);
+function spawnFauna(){if(!view)return;const{W,H,cx,cy}=view;
+  // punto al azar en pantalla → mundo (sobre el plano z=0; suficiente para elegir lugar)
+  const sx=Math.random()*W+cx,sy=Math.random()*(H+40)+cy,X=sy+sx/2,Y=sy-sx/2,f=fieldsAt(X,Y),water=f[0]<SEA-.004,b=biomeAt(...f);
+  const opts=Object.entries(SPECIES).filter(([k,s])=>WS.species[k]&&(s.where==="any"||(s.where==="water")===water)&&s.bio[b]);
+  let tot=opts.reduce((a,[,s])=>a+s.bio[b],0);if(!tot)return;let r=Math.random()*tot,sp=opts[0][0];for(const[k,s]of opts)if((r-=s.bio[b])<0){sp=k;break}
+  const V=SPECIES[sp].vars(b),v=V[Math.floor(Math.random()*V.length)],a=Math.random()*Math.PI*2,n={sp,v,X,Y,z:0,alt:0,head:a,t:0,timer:0,state:"idle",fr:0,seed:Math.random()*1000,sub:sp==="cocodrilo"};
+  if(sp==="ave"){n.alt=60+Math.random()*40;n.speed=46+Math.random()*20;n.head=Math.random()<.5?0:Math.PI/2+(Math.random()-.5)*.6}
+  if(sp==="mariposa")n.alt=8+Math.random()*10;if(sp==="murcielago")n.alt=22+Math.random()*18;
+  if(sp==="topo"){const l0=cornerLevel(Math.floor(X/T),Math.floor(Y/T));n.timer=1+Math.random()*3}
+  if(sp==="insectos")n.alt=4+Math.random()*6;
+  fauna.push(n)}
+function faunaUpdate(now,dt){pumpFauna(performance.now()+2.5);if(!view)return;
+  const target=Math.round(WS.fauna*28);while(fauna.length<target&&Math.random()<.5)spawnFauna();
+  const{W,H,cx,cy}=view;
+  for(let i=fauna.length-1;i>=0;i--){const n=fauna[i];n.t+=dt;
+    const sx=n.X-n.Y-cx,sy=(n.X+n.Y)/2-cy;if(sx<-200||sx>W+200||sy<-260||sy>H+260||!WS.species[n.sp]||fauna.length>target+4){fauna.splice(i,1);continue}
+    const step=(spd,turn)=>{n.head+=(noise3(n.t*.7,n.seed,0,3)-.5)*turn*dt;const nx=n.X+Math.cos(n.head)*spd*dt,ny=n.Y+Math.sin(n.head)*spd*dt;return[nx,ny]};
+    switch(n.sp){
+      case"mariposa":{const[x,y]=step(12,9);n.X=x;n.Y=y;n.z=n.alt+Math.sin(n.t*3+n.seed)*3;n.fr=Math.floor(n.t*9)%2;break}
+      case"murcielago":{if(Math.random()<dt*1.5)n.head+=(Math.random()-.5)*2.5;const[x,y]=step(30,6);n.X=x;n.Y=y;n.z=n.alt+Math.sin(n.t*5)*4;n.fr=Math.floor(n.t*11)%2;break}
+      case"ave":{const[x,y]=step(n.speed,1.2);n.X=x;n.Y=y;n.z=n.alt;n.fr=(n.t%3)<1.8?Math.floor(n.t*7)%2:1;break}
+      case"conejo":{if(n.state==="idle"){n.fr=0;n.z=0;if((n.timer-=dt)<=0){n.state="hop";n.hops=1+Math.floor(Math.random()*4);n.u=0;n.head=Math.random()*Math.PI*2}}
+        else{n.u+=dt/.36;n.fr=1;const nx=n.X+Math.cos(n.head)*30*dt,ny=n.Y+Math.sin(n.head)*30*dt;if(isWater(nx,ny))n.head+=Math.PI;else{n.X=nx;n.Y=ny}
+          n.z=Math.sin(Math.PI*Math.min(1,n.u))*6;if(n.u>=1){n.u=0;if(--n.hops<=0){n.state="idle";n.timer=.8+Math.random()*2.5}}}break}
+      case"topo":{n.timer-=dt;if(n.timer<=0){n.fr=1-n.fr;n.timer=n.fr?1.2+Math.random()*1.5:2+Math.random()*4}break}
+      case"pez":{if(n.state==="jump"){n.u+=dt/.8;n.z=Math.sin(Math.PI*n.u)*12;const nx=n.X+Math.cos(n.head)*22*dt,ny=n.Y+Math.sin(n.head)*22*dt;n.X=nx;n.Y=ny;if(n.u>=1){n.state="swim";n.z=0}}
+        else{const[x,y]=step(14,3);if(isWater(x,y)){n.X=x;n.Y=y}else n.head+=Math.PI*(.6+Math.random()*.8);if(Math.random()<dt*.12&&isWater(n.X+Math.cos(n.head)*18,n.Y+Math.sin(n.head)*18)){n.state="jump";n.u=0}}
+        n.fr=Math.floor(n.t*5)%2;break}
+      case"cocodrilo":{if((n.timer-=dt)<=0){n.moving=!n.moving;n.timer=n.moving?2+Math.random()*4:2+Math.random()*5}
+        if(n.moving){const[x,y]=step(6,1.5);if(isWater(x,y)){n.X=x;n.Y=y}else n.head+=Math.PI*.8}n.sub=isWater(n.X,n.Y);n.fr=Math.floor(n.t*(n.moving?2.5:.6))%2;break}
+      case"insectos":{n.X+=Math.cos(n.t*.3+n.seed)*2*dt;n.Y+=Math.sin(n.t*.27+n.seed)*2*dt;break}}}}
+function faunaItems(items,cx,cy){for(const n of fauna){const g=n.sp==="pez"||n.sp==="cocodrilo"&&n.sub?0:heightAt(n.X,n.Y),gx=n.X-n.Y-cx,gy=(n.X+n.Y)/2-g-cy,dep=n.X/T+n.Y/T+.01;
+    if(n.sp==="insectos"){items.push({k:2,depth:dep,draw:()=>{const glow=n.v.kind==="luciernaga";
+        for(let i=0;i<9;i++){const ox=(noise3(n.t*1.6,i*3.1,n.seed,1)-.5)*16,oy=(noise3(n.t*1.6,i*3.1+40,n.seed,1)-.5)*9,oz=n.alt+(noise3(n.t*1.3,i,n.seed+9,1)-.5)*8;
+          if(glow){const a=.35+.65*Math.max(0,Math.sin(n.t*3+i*1.7));lctx.fillStyle=`rgba(255,241,168,${a*.35})`;lctx.fillRect(Math.round(gx+ox)-1,Math.round(gy+oy-oz)-1,3,3);lctx.fillStyle=`rgba(255,250,210,${a})`}
+          else lctx.fillStyle="rgba(30,30,34,.85)";lctx.fillRect(Math.round(gx+ox),Math.round(gy+oy-oz),1,1)}}});continue}
+    const rot=n.sp==="topo"?0:rotOf(Math.cos(n.head),Math.sin(n.head)),s=faunaSprite(n.sp,n.v,rot,n.fr,n.sp==="cocodrilo"&&n.sub);
+    const sp=SPECIES[n.sp];
+    if(sp.shadow){const a=Math.max(.08,.28-n.z/400);items.push({k:2,depth:dep-.004,draw:()=>{lctx.fillStyle=`rgba(0,0,0,${a})`;lctx.fillRect(Math.round(gx)-3,Math.round(gy),7,1);lctx.fillRect(Math.round(gx)-2,Math.round(gy)-1,5,1);lctx.fillRect(Math.round(gx)-2,Math.round(gy)+1,5,1)}})}
+    if(!s)continue;const dx=Math.round(gx-16+16-s.originX+(16-16)),X0=n.X-16,Y0=n.Y-16,sx=X0-Y0-cx-s.originX,sy=(X0+Y0)/2-g-n.z-cy-s.originY,
+      under=n.sp==="pez"&&n.z<.5;
+    items.push({k:2,depth:sp.fly&&n.z>30?1e9:dep,draw:()=>{if(under)lctx.globalAlpha=.55;lctx.drawImage(s.cv,Math.round(sx),Math.round(sy));lctx.globalAlpha=1}})}}
+{const i=$("wfauna"),o=$("wfaunaV");const f=()=>o.textContent=WS.fauna?Math.round(WS.fauna*28)+" criaturas":"sin fauna";i.value=WS.fauna;f();
+  i.addEventListener("input",()=>{WS.fauna=+i.value;f();save()});
+  const h=$("wspecies");for(const[k,s]of Object.entries(SPECIES)){const b=document.createElement("button");b.className="chip";b.textContent=s.name;b.setAttribute("aria-pressed",!!WS.species[k]);
+    b.addEventListener("click",()=>{WS.species[k]=!WS.species[k];b.setAttribute("aria-pressed",WS.species[k]);save()});h.appendChild(b)}}
 
 // ======================= REINICIO DEL MUNDO ========================
 function resetWorld(){closePick();for(const sl of slots){if(sl.state==="appearing"){sl.state="erasing";sl.e=Math.max(0,sl.e)}if(sl.state==="ready")beginErase(sl,Math.random()*.8);

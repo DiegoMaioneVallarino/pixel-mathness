@@ -5,6 +5,7 @@ Generador paramétrico de pixel art isométrico estilo Habbo (baldosa 64×32, l�
 - **Mundo**: plano isométrico infinito que se desplaza; los furnis se dibujan píxel a píxel y se renuevan con nuevas semillas. Colorimetría con paletas, giro de tono y opacidad del interior en vivo. Clic sobre un furni para guardarlo, descargar su JSON o abrirlo.
 - **Laboratorio**: 38 generadores en 7 categorías (interior, árboles, vegetación, rocas y relieve, vallas y muros, estructuras, granja) con sliders; descarga PNG en 1 o 4 direcciones.
 - **Terreno y biomas**: modo mixto con zonas de pradera, bosque, desierto, nieve, pantano y costa (clima por temperatura/humedad, playa en las orillas). El relieve usa alturas por esquina cuantizadas a semibloques de 8 px: los desniveles siempre son pendientes planas en diagonal, con brillo en la cima y sombra al pie. Los objetos se colocan solo sobre terreno plano, a su altura.
+- **Fauna**: mariposas, murciélagos, conejos, topos, peces, aves, cocodrilos e insectos como NPC animados (4 direcciones × 2 fotogramas), que aparecen según el bioma y el terreno: los peces nadan y saltan, los conejos brincan, los topos se asoman, las aves cruzan el cielo con su sombra, los cocodrilos nadan medio sumergidos, las luciérnagas brillan.
 - **Bloques y construcciones**: bloque/semibloque y rampas (recta, esquina exterior e interior) en 9 materiales; torres, murallas y casas hechas de bloques.
 - **Alternativas y colorimetría**: el laboratorio genera 8 variaciones de un furni (forma, color o ambas) y traslada la colorimetría de un furni u objeto del catálogo a otro (por luminosidad o por orden, con opción de conservar la luz).
 - **Suprafurnis**: plano isométrico con capas para apilar furnis del catálogo respetando su altura de superficie.
@@ -31,6 +32,7 @@ src/
   engine/exterior.js  Primitivas extra (rama cónica, cilindro, cristal, roca facetada),
                       materiales por zona y los 30 generadores de exterior
   engine/bloques.js   Pieles de material, bloque/semibloque, rampas, torre, muralla y casa
+  engine/fauna.js     Generadores de las criaturas (2 fotogramas cada una)
   app/app.js          Interfaz: mundo, laboratorio, suprafurnis, catálogo
 vendor/
   pairtial-brand.css  tokens + themes + components de pairtial-style-brand (sin cambios)
