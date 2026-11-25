@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Furni Lab</title>
+<style>
+/* @inline vendor/pairtial-brand.css */
+</style>
+<style>
+/* @inline src/styles/app.css */
+</style>
+</head>
+<body class="pt-app">
+<div class="pt-shell">
+  <div class="top">
+    <div class="brandmark">
+      <h1 class="pt-text-gradient">Furni Lab</h1>
+      <div class="pt-bg-brand"></div>
+      <p>Pixel art isométrico estilo Habbo, generado por parámetros.</p>
+    </div>
+    <nav aria-label="Secciones">
+      <button class="pt-nav-item" data-view="mundo"><span class="pt-ring__inner"><span class="pt-ring__face">Mundo</span></span></button>
+      <button class="pt-nav-item" data-view="laboratorio"><span class="pt-ring__inner"><span class="pt-ring__face">Laboratorio</span></span></button>
+      <button class="pt-nav-item" data-view="supra"><span class="pt-ring__inner"><span class="pt-ring__face">Suprafurnis</span></span></button>
+      <button class="pt-nav-item" data-view="catalogo"><span class="pt-ring__inner"><span class="pt-ring__face">Catálogo</span></span></button>
+    </nav>
+  </div>
+
+  <!-- ===================== MUNDO ===================== -->
+  <section class="view" id="v-mundo">
+    <div class="pt-layer-ring pt-layer--dark frame" data-pt-surface="dark">
+      <div class="pt-ring__inner"><div class="pt-ring__face">
+        <div id="worldBox"><canvas id="world" aria-label="Plano isométrico infinito con furnis generados"></canvas></div>
+        <div class="hud"><span class="pt-pill" id="wcount">Generando…</span><span class="pt-pill" id="wgen"></span><span class="pt-pill" id="wseed"></span></div>
+        <div class="hint pt-pill">Arrastra para moverte · clic sobre un furni para ver sus opciones</div>
+        <div class="pick" id="pick" hidden><div class="pt-layer"><div class="pt-layer__in pad">
+          <button class="pickx" id="pickClose" aria-label="Cerrar">×</button>
+          <canvas id="pickCv"></canvas>
+          <h3 id="pickName"></h3><p class="meta" id="pickMeta"></p>
+          <div class="acts">
+            <button class="pt-ring-btn pt-btn--orange" id="pickSave"><span class="pt-ring__inner"><span class="pt-ring__face">Guardar en catálogo</span></span></button>
+            <button class="pt-btn" id="pickJson">Descargar JSON</button>
+            <button class="pt-btn" id="pickLab">Abrir en laboratorio</button>
+          </div>
+          <p class="note" id="pickNote"></p>
+        </div></div></div>
+      </div></div>
+    </div>
+    <div class="controls">
+      <div class="pt-layer"><div class="pt-layer__in pad">
+        <div class="field"><span>Origen de los furnis</span><div class="pt-input"><select id="wsrc"></select></div></div>
+        <p class="note" id="wsrcNote" style="margin:0"></p>
+      </div></div>
+      <div class="pt-layer"><div class="pt-layer__in pad">
+        <div class="field"><span>Colorimetría</span><div class="pt-input"><select id="wpal"></select></div></div>
+        <div class="swatches" id="wsw"></div>
+        <label class="sw">También madera, metal y hojas <input type="checkbox" class="pt-toggle" id="wpalAll"></label>
+        <div class="param"><label for="whue">Giro de tono (toda la colorimetría)</label><span class="pt-exp-param-value" id="whueV"></span><input class="pt-exp-param-range" type="range" id="whue" min="-180" max="180" step="5"></div>
+        <div class="param"><label for="walpha">Opacidad del interior</label><span class="pt-exp-param-value" id="walphaV"></span><input class="pt-exp-param-range" type="range" id="walpha" min="0.1" max="1" step="0.05"></div>
+      </div></div>
+      <div class="pt-layer"><div class="pt-layer__in pad">
+        <div class="param"><label for="wspeed">Velocidad del recorrido</label><span class="pt-exp-param-value" id="wspeedV"></span><input class="pt-exp-param-range" type="range" id="wspeed" min="0" max="6" step="0.25"></div>
+        <div class="param"><label for="wzoom">Zoom</label><span class="pt-exp-param-value" id="wzoomV"></span><input class="pt-exp-param-range" type="range" id="wzoom" min="1" max="5" step="1"></div>
+      </div></div>
+      <div class="pt-layer"><div class="pt-layer__in pad">
+        <div class="param"><label for="wdraw">Velocidad de dibujo</label><span class="pt-exp-param-value" id="wdrawV"></span><input class="pt-exp-param-range" type="range" id="wdraw" min="1" max="10" step="1"></div>
+        <div class="param"><label for="wpar">Construcciones simultáneas</label><span class="pt-exp-param-value" id="wparV"></span><input class="pt-exp-param-range" type="range" id="wpar" min="1" max="8" step="1"></div>
+      </div></div>
+      <div class="pt-layer"><div class="pt-layer__in pad">
+        <label class="sw">Renovación continua <input type="checkbox" class="pt-toggle" id="wrenew"></label>
+        <div class="param"><label for="wevery">Renovar un furni cada</label><span class="pt-exp-param-value" id="weveryV"></span><input class="pt-exp-param-range" type="range" id="wevery" min="0.5" max="10" step="0.5"></div>
+      </div></div>
+      <div class="pt-layer"><div class="pt-layer__in pad">
+        <div class="param"><label for="wdens">Densidad de furnis</label><span class="pt-exp-param-value" id="wdensV"></span><input class="pt-exp-param-range" type="range" id="wdens" min="0.1" max="1" step="0.05"></div>
+        <div class="param"><label for="wpool">Variedad (furnis distintos)</label><span class="pt-exp-param-value" id="wpoolV"></span><input class="pt-exp-param-range" type="range" id="wpool" min="8" max="60" step="4"></div>
+      </div></div>
+      <div class="pt-layer"><div class="pt-layer__in pad">
+        <div class="field"><span>Dirección del recorrido</span><div class="pt-input"><select id="wdir">
+          <option value="0">↘ Eje X</option><option value="1">↙ Eje Y</option><option value="2">↓ Diagonal</option><option value="3">→ Horizontal</option></select></div></div>
+        <label class="sw">Piso a cuadros <input type="checkbox" class="pt-toggle" id="wcheck"></label>
+      </div></div>
+      <div class="pt-layer"><div class="pt-layer__in pad">
+        <div class="acts">
+          <button class="pt-ring-btn pt-btn--orange" id="wnew"><span class="pt-ring__inner"><span class="pt-ring__face">Nueva semilla</span></span></button>
+          <button class="pt-btn" id="wpause">Pausar</button>
+        </div>
+        <p class="note" style="margin:10px 0 0">Cada furni se dibuja de abajo hacia arriba en pedacitos de 6 ms por cuadro, así la app nunca se traba.</p>
+      </div></div>
+    </div>
+  </section>
+
+  <!-- ===================== LABORATORIO ===================== -->
+  <section class="view" id="v-laboratorio" hidden>
+    <div class="lab">
+      <div>
+        <div class="types" id="types"></div>
+        <div class="pt-layer-ring pt-sunken frame"><div class="pt-ring__inner"><div class="pt-ring__face"><div id="stage"><canvas id="view"></canvas></div></div></div></div>
+        <div class="bar">
+          <div class="dirs" id="dirs" role="group" aria-label="Dirección">
+            <button class="pt-nav-item" data-r="0" title="Mira abajo-derecha"><span class="pt-ring__inner"><span class="pt-ring__face">↘</span></span></button>
+            <button class="pt-nav-item" data-r="1" title="Mira abajo-izquierda"><span class="pt-ring__inner"><span class="pt-ring__face">↙</span></span></button>
+            <button class="pt-nav-item" data-r="2" title="Mira arriba-izquierda"><span class="pt-ring__inner"><span class="pt-ring__face">↖</span></span></button>
+            <button class="pt-nav-item" data-r="3" title="Mira arriba-derecha"><span class="pt-ring__inner"><span class="pt-ring__face">↗</span></span></button>
+          </div>
+          <label class="sw" style="gap:10px">Baldosa <input type="checkbox" class="pt-toggle" id="tile" checked></label>
+          <span class="stat" id="stat"></span>
+        </div>
+        <div class="bar">
+          <button class="pt-ring-btn pt-btn--orange" id="dl"><span class="pt-ring__inner"><span class="pt-ring__face">Descargar PNG</span></span></button>
+          <button class="pt-btn" id="dl4">4 direcciones</button>
+          <button class="pt-btn" id="rand">Aleatorio</button>
+          <button class="pt-btn" id="reset">Restablecer</button>
+          <button class="pt-btn" id="labSave">Guardar en catálogo</button>
+          <button class="pt-btn pt-btn--black" id="copy">Copiar JSON</button>
+        </div>
+        <div class="note" id="note"></div>
+        <div class="thumb"><img id="thumb" class="pt-card" alt="Sprite a tamaño real"><span>Tamaño real. Si la descarga no está disponible aquí: clic derecho sobre esta imagen › Guardar.</span></div>
+      </div>
+      <div class="pt-layer"><div class="pt-layer__in pad">
+        <h2 id="ptitle">Parámetros</h2>
+        <div id="params"></div>
+        <h2>Colores</h2>
+        <div class="colors" id="colors"></div>
+        <h2 style="margin-top:18px">Render</h2>
+        <div id="global"></div>
+      </div></div>
+    </div>
+  </section>
+
+  <!-- ===================== SUPRAFURNIS ===================== -->
+  <section class="view" id="v-supra" hidden>
+    <div class="supra">
+      <aside class="pt-layer"><div class="pt-layer__in pad">
+        <h2>Catálogo</h2>
+        <div class="field"><div class="pt-input"><select id="seFam" aria-label="Filtrar por familia"></select></div></div>
+        <div class="selist pt-scroll" id="seList"></div>
+        <p class="note" id="seListNote"></p>
+      </div></aside>
+      <div>
+        <div class="pt-layer-ring pt-sunken frame"><div class="pt-ring__inner"><div class="pt-ring__face"><div id="seStage"><canvas id="seCv" aria-label="Plano isométrico del suprafurni"></canvas></div></div></div></div>
+        <div class="bar">
+          <div class="dirs" role="group" aria-label="Mover pieza">
+            <button class="pt-nav-item" data-mv="-x" title="Mover ↖"><span class="pt-ring__inner"><span class="pt-ring__face">↖</span></span></button>
+            <button class="pt-nav-item" data-mv="-y" title="Mover ↗"><span class="pt-ring__inner"><span class="pt-ring__face">↗</span></span></button>
+            <button class="pt-nav-item" data-mv="+y" title="Mover ↙"><span class="pt-ring__inner"><span class="pt-ring__face">↙</span></span></button>
+            <button class="pt-nav-item" data-mv="+x" title="Mover ↘"><span class="pt-ring__inner"><span class="pt-ring__face">↘</span></span></button>
+          </div>
+          <button class="pt-btn" id="seRot">Rotar</button>
+          <button class="pt-btn" id="seDup">Duplicar</button>
+          <button class="pt-btn" id="seDel">Quitar</button>
+          <span class="stat" id="seStat"></span>
+        </div>
+        <div class="controls">
+          <div class="pt-layer"><div class="pt-layer__in pad">
+            <div class="param"><label for="seDz">Altura extra de la pieza</label><span class="pt-exp-param-value" id="seDzV"></span><input class="pt-exp-param-range" type="range" id="seDz" min="-16" max="64" step="1"></div>
+            <div class="field"><span>Paso de movimiento</span><div class="pt-input"><select id="seStep"><option value="1">1 baldosa</option><option value="0.5">½ baldosa</option><option value="0.25">¼ de baldosa</option></select></div></div>
+          </div></div>
+          <div class="pt-layer"><div class="pt-layer__in pad">
+            <div class="param"><label for="seGrid">Tamaño del plano</label><span class="pt-exp-param-value" id="seGridV"></span><input class="pt-exp-param-range" type="range" id="seGrid" min="2" max="6" step="1"></div>
+            <div class="field"><span>Nombre</span><div class="pt-input"><input id="seName" maxlength="60" aria-label="Nombre del suprafurni"></div></div>
+          </div></div>
+          <div class="pt-layer"><div class="pt-layer__in pad">
+            <div class="acts">
+              <button class="pt-ring-btn pt-btn--orange" id="seSave"><span class="pt-ring__inner"><span class="pt-ring__face">Guardar en catálogo</span></span></button>
+              <button class="pt-btn" id="seSaveNew">Guardar como nuevo</button>
+              <button class="pt-btn" id="sePng">PNG</button><button class="pt-btn" id="seJson">JSON</button><button class="pt-btn" id="seClear">Vaciar</button>
+            </div>
+          </div></div>
+        </div>
+        <p class="note" id="seNote">Selecciona una pieza y añade otra: se coloca encima, a la altura de su superficie.</p>
+      </div>
+      <aside class="pt-layer"><div class="pt-layer__in pad">
+        <h2>Capas</h2>
+        <p class="note" style="margin:0 0 8px">Arriba = al frente. Usa ↑ ↓ para cambiar qué pieza queda delante.</p>
+        <div class="layers" id="seLayers"></div>
+        <button class="pt-btn" id="seAuto" style="margin-top:10px;width:100%">Ordenar por profundidad</button>
+      </div></aside>
+    </div>
+  </section>
+
+  <!-- ===================== CATÁLOGO ===================== -->
+  <section class="view" id="v-catalogo" hidden>
+    <div class="cat">
+      <aside class="pt-layer"><div class="pt-layer__in pad">
+        <h2>Familias</h2>
+        <div class="fam" id="famList"></div>
+        <div class="famnew"><div class="pt-input"><input id="famNew" placeholder="Nueva familia" maxlength="40" aria-label="Nombre de la nueva familia"></div><button class="pt-btn" id="famAdd">Crear</button></div>
+        <div id="famTools" hidden>
+          <h2 style="margin-top:16px">Esta familia</h2>
+          <div class="famnew"><div class="pt-input"><input id="famRename" maxlength="40" aria-label="Renombrar familia"></div><button class="pt-btn" id="famRenameBtn">Renombrar</button></div>
+          <button class="pt-btn" id="famDel" style="margin-top:8px">Eliminar familia</button>
+        </div>
+        <button class="pt-ring-btn pt-btn--orange" id="toWorld" style="margin-top:16px;width:100%"><span class="pt-ring__inner"><span class="pt-ring__face">Ver todo el catálogo en el mundo</span></span></button>
+        <h2 style="margin-top:18px">Archivo</h2>
+        <div class="acts"><button class="pt-btn" id="catExport">Exportar catálogo</button><label class="pt-btn" for="catFile" style="display:inline-grid;place-items:center;cursor:pointer">Importar JSON</label><input type="file" id="catFile" accept=".json,application/json" hidden></div>
+        <p class="note" id="catNote">Se guarda en este navegador. Exporta el catálogo para respaldarlo o llevarlo a otro equipo.</p>
+      </div></aside>
+      <div>
+        <h2 id="catTitle"></h2>
+        <div class="grid" id="catGrid"></div>
+        <div class="empty pt-card" id="catEmpty" hidden>Aún no hay objetos aquí. Haz clic sobre un furni en el Mundo o usa «Guardar en catálogo» en el Laboratorio.</div>
+      </div>
+    </div>
+  </section>
+</div>
+<script>
+{
+/* @inline src/engine/engine.js */
+/* @inline src/app/app.js */
+}
+</script>
+</body>
+</html>
