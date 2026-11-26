@@ -107,3 +107,6 @@ input[type=color]{width:30px;height:30px;border:0;padding:0;background:none;bord
 .layer .b{display:flex;gap:4px}
 button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--pt-accent);outline-offset:3px}
 @media(max-width:600px){.hint{display:none}.stat{margin-inline-start:0}}
+.leafprev{grid-column:1/-1;display:grid;gap:6px;padding:10px;border-radius:12px;background:color-mix(in srgb,currentColor 5%,transparent)}
+.leafprev-h{display:flex;justify-content:space-between;font-size:12px;opacity:.85}
+#leafprev{width:100%;height:auto;image-rendering:pixelated}

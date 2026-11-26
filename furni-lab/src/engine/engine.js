@@ -38,15 +38,43 @@ function makeJob(f,rot=0,S=G){
   const partAt=(x,y,z)=>{const o=toObj(x,y);let b=0,bd=1e9;for(let i=0;i<np;i++){const e=P[i].sdf(o[0],o[1],z);if(e<bd){bd=e;b=i}}return b};
   const Hh=f.height,sl=f.slack||10,ox=D+sl,oy=Hh+sl,w=W+D+sl*2,h=Math.ceil(Hh+(W+D)/2+sl*2),N=w*h;
   const pm=new Array(N),hit=new Int16Array(N).fill(-1),dep=new Float32Array(N),nr=new Float32Array(N*3),ps=new Float32Array(N*3),lev=new Int8Array(N),fl=new Uint8Array(N);
-  const img=new ImageData(w,h),pv=img.data;
+  const img=new ImageData(w,h),pv=img.data,dmin=new Float32Array(N).fill(1e9);
+  // ---- hojas vectoriales: sellos rasterizados colocados sobre la copa (se componen en el G-buffer) ----
+  const Pall=f.leaves?P.concat(f.leaves.mats.map(m=>({mat:m}))):P,isLeaf=new Uint8Array(N);
+  const fromObj=rot===1?(a,b)=>[W-b,a]:rot===2?(a,b)=>[W0-a,D0-b]:rot===3?(a,b)=>[b,D-a]:(a,b)=>[a,b];
+  const fromObjN=rot===1?(a,b)=>[-b,a]:rot===2?(a,b)=>[-a,-b]:rot===3?(a,b)=>[b,-a]:(a,b)=>[a,b];
+  let LQ=null,lqi=0;
+  if(f.leaves){const LF=f.leaves,Lo=toObjN(L[0],L[1]),env=LF.env||[];LQ=[];
+    for(const q of LF.items){const[wx,wy]=fromObj(q.x,q.y),[nx,ny]=fromObjN(q.nx,q.ny),[ddx,ddy]=fromObjN(q.dx,q.dy);
+      const ci=Math.round(wx-wy+ox),cj=Math.round((wx+wy)/2-q.z+oy),sdx=ddx-ddy,sdy=(ddx+ddy)/2-q.dz,pl=H2(sdx,sdy);
+      const st=leafStamp(q.sh||LF.shape,q.len*Math.min(1,.3+pl*.7),q.wid,Math.atan2(sdy,sdx));
+      const s=nx*L[0]+ny*L[1]+q.nz*L[2];let lv=(s>.74?4:s>.5?3:s>.2?2:1)+(q.dl||0);
+      // sombra propia: ¿otra masa de la copa tapa la luz?
+      if(s>.2)for(let ei=0;ei<env.length;ei++){if(ei===q.e)continue;const c=env[ei],
+          ox_=(q.x+q.nx*.5-c[0])/c[3],oy_=(q.y+q.ny*.5-c[1])/c[4],oz_=(q.z+q.nz*.5-c[2])/c[5],dx_=Lo[0]/c[3],dy_=Lo[1]/c[4],dz_=L[2]/c[5];
+        const A=dx_*dx_+dy_*dy_+dz_*dz_,B=ox_*dx_+oy_*dy_+oz_*dz_,C=ox_*ox_+oy_*oy_+oz_*oz_-.72,disc=B*B-A*C;if(disc>0&&(-B+Math.sqrt(disc))/A>0){lv--;break}}
+      LQ.push({i0:ci+st.x0,j0:cj+st.y0,st,dep:wx+wy+q.z,lv:Math.max(0,Math.min(4,lv)),m:np+q.m,n:[nx,ny,q.nz]})}
+    LQ.sort((a,b)=>b.j0-a.j0)}
+  function stampLeaf(q){const st=q.st,m=Pall[q.m].mat;
+    for(let y=0;y<st.w;y++){const j=q.j0+y;if(j<0||j>=h)continue;
+      for(let x=0;x<st.w;x++){const v=st.d[y*st.w+x];if(!v)continue;const i=q.i0+x;if(i<0||i>=w)continue;const k=j*w+i;
+        if(hit[k]>=0&&dep[k]>=q.dep)continue;
+        const lv=Math.max(0,Math.min(5,q.lv+(v===2?1:v===3||v===4?-1:0)));
+        const sx=i+.5-ox,sy=j+.5-oy,ss=(sy+q.dep)/1.5;
+        hit[k]=q.m;pm[k]=m;dep[k]=q.dep;lev[k]=lv;isLeaf[k]=1;dmin[k]=0;nr[k*3]=q.n[0];nr[k*3+1]=q.n[1];nr[k*3+2]=q.n[2];
+        ps[k*3]=(ss+sx)/2;ps[k*3+1]=(ss-sx)/2;ps[k*3+2]=q.dep-ss;
+        const c=m.ramp[lv];pv[k*4]=c[0];pv[k*4+1]=c[1];pv[k*4+2]=c[2];pv[k*4+3]=255}}}
   const toLight=(x,y,z)=>{let t=.6;for(let i=0;i<160&&t<140;i++){const d=dist(x+L[0]*t,y+L[1]*t,z+L[2]*t);if(d<.02)return true;t+=Math.max(d*.9,.05)}return false};
   const E=.12;
   function pixel(i,j){
     const sx=i+.5-ox,sy=j+.5-oy,x0=sy+sx/2,y0=sy-sx/2,k=j*w+i;
     const tHi=Math.min(Hh+2,W+sl-x0,D+sl-y0),tLo=Math.max(-.5,-sl-x0,-sl-y0);
-    let t=tHi,ok=false;
-    while(t>=tLo){const d=dist(x0+t,y0+t,t);if(d<.01){ok=true;break}t-=Math.max(d*.55,.03)}
-    if(!ok){if(S.floor&&x0>-sl&&y0>-sl&&x0<W+sl&&y0<D+sl&&toLight(x0,y0,.01)){fl[k]=1;pv[k*4+3]=70}return}
+    // Salto conservador: si los rayos vecinos (izquierda y abajo, ya calculados) pasaron a más de
+    // 2.4 unidades de toda superficie, este rayo (a ≤1.3 unidades de ellos) también falla.
+    const dl=i>0?dmin[k-1]:1e9,db=j<h-1?dmin[k+w]:1e9;if(i>0&&j<h-1&&dl>2.4&&db>2.4){dmin[k]=Math.min(dl,db)-1.3;return}
+    let t=tHi,ok=false,md=1e9;
+    while(t>=tLo){const d=dist(x0+t,y0+t,t);if(d<md)md=d;if(d<.01){ok=true;break}t-=Math.max(d*.55,.03)}
+    dmin[k]=ok?0:md;if(!ok)return;
     const px=x0+t,py=y0+t,pz=t;
     let nx=dist(px+E,py,pz)-dist(px-E,py,pz),ny=dist(px,py+E,pz)-dist(px,py-E,pz),nz=dist(px,py,pz+E)-dist(px,py,pz-E);const nl=H2(nx,ny,nz)||1;nx/=nl;ny/=nl;nz/=nl;
     const p=partAt(px,py,pz);let m=P[p].mat;if(P[p].pick){const o=toObj(px,py),on=toObjN(nx,ny),mm=P[p].pick(o[0],o[1],pz,on[0],on[1],nz);if(mm)m=mm}pm[k]=m;hit[k]=p;dep[k]=px+py+pz;nr[k*3]=nx;nr[k*3+1]=ny;nr[k*3+2]=nz;ps[k*3]=px;ps[k*3+1]=py;ps[k*3+2]=pz;
@@ -59,20 +87,27 @@ function makeJob(f,rot=0,S=G){
     step(n=Infinity,deadline=Infinity){let c=0;
       while(job.row>=0&&c<n){pixel(job.col,job.row);c++;job.count++;if(++job.col>=w){job.col=0;job.row--}
         if((c&31)===0&&performance.now()>deadline)break}
+      if(LQ){while(lqi<LQ.length&&(job.row<0||LQ[lqi].j0>job.row))stampLeaf(LQ[lqi++])}
       if(job.row<0)job.done=true;return c},
     finish(){
+  if(S.floor){const lz=Math.max(.15,L[2]);
+    for(let k=0;k<N;k++){if(hit[k]<0)continue;const pz=ps[k*3+2];
+      for(let f=0;f<=1;f++){const zz=pz*(f?1:.5),qx=ps[k*3]-L[0]*(zz/lz),qy=ps[k*3+1]-L[1]*(zz/lz),i=Math.floor(qx-qy+ox),j=Math.floor((qx+qy)/2+oy);
+        if(i>=0&&j>=0&&i<w-1&&j<h-1){const q=j*w+i;if(hit[q]<0)fl[q]=1;if(hit[q+1]<0)fl[q+1]=1;if(hit[q+w]<0)fl[q+w]=1}}}
+    // cerrar huecos de 1 píxel en la sombra
+    for(let j=1;j<h-1;j++)for(let i=1;i<w-1;i++){const q=j*w+i;if(fl[q]||hit[q]>=0)continue;let c=0;if(fl[q-1])c++;if(fl[q+1])c++;if(fl[q-w])c++;if(fl[q+w])c++;if(c>=3)fl[q]=2}}
   const JUMP=4,oo=new Int16Array(N).fill(-1),od=new Float32Array(N).fill(-1e9),cr=new Int8Array(N).fill(-1),NB=[[1,0],[-1,0],[0,1],[0,-1]];
   for(let j=0;j<h;j++)for(let i=0;i<w;i++){const p=j*w+i;if(hit[p]<0)continue;
     for(const[dx,dy]of NB){const qi=i+dx,qj=j+dy;if(qi<0||qj<0||qi>=w||qj>=h)continue;const q=qj*w+qi;
       if(hit[q]<0||dep[p]-dep[q]>JUMP){if(dep[p]>od[q]){od[q]=dep[p];oo[q]=hit[p]}continue}
-      if(Math.abs(dep[p]-dep[q])>JUMP)continue;
-      const dn=nr[p*3]*nr[q*3]+nr[p*3+1]*nr[q*3+1]+nr[p*3+2]*nr[q*3+2],seam=hit[p]!==hit[q]&&P[hit[p]].mat!==P[hit[q]].mat;
+      if(Math.abs(dep[p]-dep[q])>JUMP||(isLeaf[p]&&isLeaf[q]))continue;
+      const dn=nr[p*3]*nr[q*3]+nr[p*3+1]*nr[q*3+1]+nr[p*3+2]*nr[q*3+2],seam=hit[p]!==hit[q]&&Pall[hit[p]].mat!==Pall[hit[q]].mat;
       if(dn>.7&&!seam)continue;if(lev[p]>lev[q]||(lev[p]===lev[q]&&dep[p]>dep[q]))continue;
       const cv=(nr[p*3]-nr[q*3])*(ps[p*3]-ps[q*3])+(nr[p*3+1]-nr[q*3+1])*(ps[p*3+1]-ps[q*3+1])+(nr[p*3+2]-nr[q*3+2])*(ps[p*3+2]-ps[q*3+2]);
       const lv=seam?1:cv>0?Math.min(5,Math.max(lev[p],lev[q])+1):Math.max(0,Math.min(lev[p],lev[q])-1);if(lv>cr[p])cr[p]=lv}}
   const px=new Uint8ClampedArray(N*4),mk8=new Uint8Array(N),IA=Math.round(Math.min(1,Math.max(0,S.alpha??1))*255),put=(k,c,a=255)=>{px[k*4]=c[0];px[k*4+1]=c[1];px[k*4+2]=c[2];px[k*4+3]=a};
   // máscara: 1 = contorno, 2 = interior (0 = vacío o sombra)
-  for(let k=0;k<N;k++){if(oo[k]>=0&&S.outline!=="none"){put(k,P[oo[k]].mat.outline);mk8[k]=1;continue}
+  for(let k=0;k<N;k++){if(oo[k]>=0&&S.outline!=="none"){put(k,Pall[oo[k]].mat.outline);mk8[k]=1;continue}
     if(hit[k]>=0){const m=pm[k];put(k,m.ramp[cr[k]>=0?cr[k]:lev[k]],IA);mk8[k]=2;continue}if(fl[k])put(k,[0,0,0],70)}
   let a=w,b=h,c=-1,d=-1;for(let j=0;j<h;j++)for(let i=0;i<w;i++)if(px[(j*w+i)*4+3]){a=Math.min(a,i);c=Math.max(c,i);b=Math.min(b,j);d=Math.max(d,j)}
   if(c<0){a=b=0;c=d=1}a--;b--;c++;d++;const cw=c-a+1,ch=d-b+1,out=new Uint8ClampedArray(cw*ch*4),mask=new Uint8Array(cw*ch);
@@ -176,4 +211,3 @@ FURNI.planta.stack=p=>p.potH;
 FURNI.estante.stack=p=>p.h;
 FURNI.cama.stack=p=>p.mh+(p.cover>0?1.2:0);
 FURNI.alfombra.stack=p=>p.th+(p.bw>0||p.pattern!=="none"?.5:0);
-

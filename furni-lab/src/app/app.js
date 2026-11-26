@@ -14,7 +14,7 @@ const PRESETS={marca:["#0894ff","#c959dd","#ff2e54","#ff9004","#0066ff","#ff3fcd
   atardecer:["#ff5e5b","#ff9e44","#ffd166","#8a4fc4","#3d2c8d","#ef476f"],bosque:["#2f5d3a","#6b8f4e","#a3b18a","#8b5e34","#d4a373","#3a4a3f"],
   oceano:["#023e8a","#0077b6","#00b4d8","#90e0ef","#caf0f8","#03045e"],mono:["#151515","#4c4c4c","#707070","#999999","#c9c9c9","#f2f2f2"]};
 const PRESET_NAMES=[["marca","Marca Pairtial"],["pastel","Pastel"],["atardecer","Atardecer"],["bosque","Bosque"],["oceano","Océano"],["mono","Monocromo"],["custom","Personalizada"]];
-const WS=Object.assign({veg:.7,speed:2,zoom:innerWidth<600?2:3,dens:.8,pool:160,dir:0,check:false,draw:5,par:3,every:2.5,renew:true,src:"random",pal:"marca",palette:PRESETS.marca.slice(),palAll:false,hue:0,alpha:1,light:0,bio:"mixto",fauna:.5,species:null},store.W||{});
+const WS=Object.assign({veg:.7,speed:2,zoom:innerWidth<600?2:3,dens:.8,pool:160,dir:0,check:false,draw:5,par:8,every:2.5,renew:true,src:"random",pal:"marca",palette:PRESETS.marca.slice(),palAll:false,hue:0,alpha:1,light:0,bio:"mixto",fauna:.5,species:null},store.W||{});if(!WS.v12){WS.v12=1;WS.par=Math.max(WS.par,8)}
 if(!Array.isArray(WS.palette)||WS.palette.length!==6||!WS.palette.every(c=>/^#[0-9a-f]{6}$/i.test(c)))WS.palette=PRESETS.marca.slice();
 if(!PRESET_NAMES.some(p=>p[0]===WS.pal))WS.pal="marca";
 const save=()=>{try{localStorage.setItem("furnilab2",JSON.stringify({type,G,P:allP,W:WS}))}catch(e){}};
@@ -48,6 +48,7 @@ function buildCats(){const h=$("typeCats");h.innerHTML="";CATS.forEach(([k,n])=>
 function filterTypes(){document.querySelectorAll("#types button").forEach(b=>b.hidden=FURNI[b.dataset.t].cat!==curCat)}
 function buildPanel(){P=allP[type];const f=FURNI[type];if(f.cat&&f.cat!==curCat){curCat=f.cat}buildCats();filterTypes();$("ptitle").textContent="Parámetros · "+f.name;
   const h=$("params");h.innerHTML="";(f.params||[]).forEach(a=>slider(h,a,P,schedule));(f.selects||[]).forEach(a=>select(h,a,P,()=>{if(f.onSelect){f.onSelect(a[0],P[a[0]],P);buildPanel()}schedule()}));(f.toggles||[]).forEach(a=>toggle(h,a,P,schedule));
+  if("lshape"in P){const d=document.createElement("div");d.className="leafprev";d.innerHTML=`<div class="leafprev-h"><span>Hoja vectorial → píxeles</span><span class="pt-exp-param-value">${esc(LEAF_SHAPES[P.lshape]?.name||"")}</span></div><canvas id="leafprev" width="300" height="96"></canvas>`;h.prepend(d);drawLeafPrev()}
   const c=$("colors");c.innerHTML="";(f.colors||[]).forEach(([k,lab])=>{const l=document.createElement("label");l.className="pt-ring color";
     l.innerHTML=`<span class="pt-ring__inner"><span class="pt-ring__face"><input type="color"><span>${esc(lab)}</span></span></span>`;const i=l.querySelector("input");i.value=P[k];
     i.addEventListener("input",()=>{P[k]=i.value;schedule()});c.appendChild(l)});
@@ -63,7 +64,22 @@ function compose(s,withTile){let x0=0,y0=0,x1=s.width,y1=s.height;
   const cv=document.createElement("canvas");cv.width=w;cv.height=h;cv.getContext("2d").putImageData(img,0,0);return cv}
 const spriteCanvas=s=>compose(s,false);
 let cur=null,pending=0;
-function schedule(){save();if(current!=="laboratorio")return;cancelAnimationFrame(pending);pending=requestAnimationFrame(()=>setTimeout(drawLab,0))}
+/** Vista de la hoja: el contorno vectorial (izquierda) y sus sellos rasterizados a varios ángulos con el tamaño actual. */
+function drawLeafPrev(){const cv=$("leafprev");if(!cv||!("lshape"in P))return;const x=cv.getContext("2d"),sh=LEAF_SHAPES[P.lshape]||LEAF_SHAPES.oval,W=cv.width,H=cv.height;
+  x.clearRect(0,0,W,H);x.imageSmoothingEnabled=false;const col=P.c2&&P.c2[0]==="#"&&type!=="arbusto"?P.c2:P.c1,m=mat(col,{shift:.09}),rgb=c=>`rgb(${c[0]},${c[1]},${c[2]})`;
+  const Lp=80,hw=(P.lwid||.5)*(sh.wmul||1)*Lp,x0=10,y0=H/2,pts=[];for(let i=0;i<=60;i++){const u=i/60;pts.push([x0+u*Lp,leafHalf(sh,u)*hw])}
+  x.beginPath();x.moveTo(x0,y0);pts.forEach(([px,w])=>x.lineTo(px,y0-w));for(let i=pts.length-1;i>=0;i--)x.lineTo(pts[i][0],y0+pts[i][1]);x.closePath();
+  x.fillStyle=rgb(m.ramp[3]);x.fill();x.lineWidth=1.5;x.strokeStyle=rgb(m.outline);x.stroke();x.beginPath();x.moveTo(x0,y0);x.lineTo(x0+Lp*.85,y0);x.strokeStyle=rgb(m.ramp[1]);x.stroke();
+  x.fillStyle="rgba(127,127,127,.5)";x.fillRect(x0+Lp+12,8,1,H-16);
+  // sellos recortados a su caja, ampliados para que se vea cada píxel
+  const angs=[-90,-30,0,45,135],Z=Math.max(4,Math.min(9,Math.floor(34/P.lsize)));let ox=x0+Lp+24;
+  for(const a of angs){const s=leafStamp(P.lshape,P.lsize,P.lwid,a*Math.PI/180);let i0=s.w,i1=-1,j0=s.w,j1=-1;
+    for(let j=0;j<s.w;j++)for(let i=0;i<s.w;i++)if(s.d[j*s.w+i]){i0=Math.min(i0,i);i1=Math.max(i1,i);j0=Math.min(j0,j);j1=Math.max(j1,j)}
+    const bw=(i1-i0+1)*Z;if(ox+bw>W-4)break;const top=y0-((j1-j0+1)*Z)/2;
+    for(let j=j0;j<=j1;j++)for(let i=i0;i<=i1;i++){const v=s.d[j*s.w+i];if(!v)continue;x.fillStyle=rgb(m.ramp[v===2?4:v===1?3:2]);x.fillRect(ox+(i-i0)*Z,top+(j-j0)*Z,Z,Z)}
+    ox+=bw+8}
+  const lab=cv.parentNode.querySelector(".pt-exp-param-value");if(lab)lab.textContent=sh.name}
+function schedule(){save();drawLeafPrev();if(current!=="laboratorio")return;cancelAnimationFrame(pending);pending=requestAnimationFrame(()=>setTimeout(drawLab,0))}
 function drawLab(){const t0=performance.now();cur=render(FURNI[type].build(P),rot);const ms=Math.round(performance.now()-t0);
   const comp=compose(cur,$("tile").checked),st=$("stage"),fit=Math.max(1,Math.floor(Math.min((st.clientWidth-24)/comp.width,(st.clientHeight-24)/comp.height)));
   const z=Math.min(fit,12),v=$("view");v.width=comp.width*z;v.height=comp.height*z;const g=v.getContext("2d");g.imageSmoothingEnabled=false;g.drawImage(comp,0,0,v.width,v.height);
@@ -172,7 +188,13 @@ function genParams(t,r,bio,extra){const BIO=BIOMES[bio]&&BIOMES[bio].w?BIOMES[bi
   if(t==="silla")p.slats=Math.min(p.slats,5);if(["planta","estante"].includes(t))p.seed=(r()*500|0)+1;
   const used=new Set();for(const[k,role]of Object.entries(ROLE[t]||{})){const L=palFor(role);let j=Math.floor(r()*L.length);
     if(role==="fabric")for(let n=0;n<L.length&&used.has(L[j]);n++)j=(j+1)%L.length;p[k]=L[j];used.add(L[j])}
-  if(t==="lampara")p.glow=r()<.8;if(BIO.tweak)BIO.tweak(t,p,r);curBio=null;return p}
+  if(t==="lampara")p.glow=r()<.8;if(BIO.tweak)BIO.tweak(t,p,r);
+  if("lshape"in p){// follaje del mundo: formas naturales, tamaño de hoja proporcional y segundo tono derivado del primero
+    const base=t==="arbusto"?p.c1:p.c2,n=parseInt(base.slice(1),16),[hh,ss,ll]=rgb2hsl(n>>16&255,n>>8&255,n&255);
+    p.c3=hex(hsl2rgb(hh+(r()-.3)*40,Math.min(1,ss+.08),Math.min(.8,ll+.08+r()*.1)));
+    p.lshape=p.droop>.5?"lanceolada":pickR(r,t==="arbusto"?["redonda","oval","oval","corazon","lobulada"]:["oval","oval","lobulada","corazon","redonda","lanceolada"]);
+    p.lsize=Math.min(Math.max(3,p.lsize),t==="arbusto"?2.5+(p.size||1)*2:6.5);p.ldens=Math.max(.8,Math.min(1.4,p.ldens));p.lwid=Math.max(.45,p.lwid);p.hojas=true}
+  curBio=null;return p}
 // ---------- Conjuntos: suprafurnis generados por tema ----------
 const pickR=(r,a)=>a[Math.floor(r()*a.length)],nR=(r,a,b)=>Array.from({length:a+Math.floor(r()*(b-a+1))});
 const THEMES={
@@ -241,9 +263,12 @@ function paintErase(sl){const s=sl.s,src=sl.eview,d=sl.eimg.data,e=Math.max(0,sl
 function update(now,dt){frameNo++;ensureSlots();if(isExterior())faunaUpdate(now,dt);
   let building=slots.filter(s=>s.state==="building").length;
   const order=slots.filter(s=>s.state==="queued").sort((a,b)=>(visible.has(b.i)-visible.has(a.i))||a.i-b.i);
-  for(const sl of order){if(building>=WS.par)break;startBuild(sl,now);if(sl.state==="building")building++}
-  // presupuesto: 6 ms por cuadro repartidos entre las construcciones activas
-  const deadline=performance.now()+6,ppf=Math.round(8*2**(WS.draw-1));
+  // atraso: huecos visibles sin objeto. Con atraso se dibuja más rápido y en más sitios a la vez
+  const backlog=order.filter(s=>visible.has(s.i)).length+slots.filter(s=>s.state==="building"&&visible.has(s.i)).length,rush=backlog>3;
+  const par=WS.par+(rush?Math.min(8,backlog>>1):0);
+  for(const sl of order){if(building>=par)break;startBuild(sl,now);if(sl.state==="building")building++}
+  // presupuesto: 6 ms por cuadro (11 ms con atraso) repartidos entre las construcciones activas
+  const deadline=performance.now()+(rush?11:6),ppf=Math.round(8*2**(WS.draw-1))*(rush?4:1);
   for(const sl of slots){if(sl.state!=="building")continue;
     const n=sl.job.step(ppf,deadline);if(n)paintJob(sl);
     if(sl.job.done)finishBuild(sl,now);if(performance.now()>deadline)break}
@@ -659,7 +684,7 @@ $("clipApply").addEventListener("click",()=>{if(!clip||!clip.colors.length)retur
 
 // ============================== FAUNA (NPC) ==============================
 // Cada especie: dónde aparece (bioma, agua/tierra), cómo se mueve y qué variante de color usa.
-let view=null;const fauna=[];
+let view=null;const fauna=[];window.__faunaDbg=fauna;
 const SPECIES={
   mariposa:{name:"Mariposas",fly:true,shadow:true,where:"land",bio:{pradera:5,bosque:1.5,costa:1.5,pantano:1},vars:()=>WS.palette.slice(0,4).map(c=>({c1:c}))},
   murcielago:{name:"Murciélagos",fly:true,shadow:true,where:"land",bio:{bosque:2.5,pantano:2.5,nieve:1,desierto:1},vars:()=>[{},{c1:"#4a3a2f",c2:"#6a5a4a"}]},
@@ -690,26 +715,38 @@ function spawnFauna(){if(!view)return;const{W,H,cx,cy}=view;
   let sx=Math.random()*W+cx,sy=Math.random()*(H+40)+cy,X=sy+sx/2,Y=sy-sx/2,f=fieldsAt(X,Y);const water=f[0]<SEA-.004,b=biomeAt(...f);
   const opts=Object.entries(SPECIES).filter(([k,s])=>WS.species[k]&&(s.where==="any"||(s.where==="water")===water)&&s.bio[b]);
   let tot=opts.reduce((a,[,s])=>a+s.bio[b],0);if(!tot)return;let r=Math.random()*tot,sp=opts[0][0];for(const[k,s]of opts)if((r-=s.bio[b])<0){sp=k;break}
-  const V=SPECIES[sp].vars(b),v=individual(sp,V[Math.floor(Math.random()*V.length)]),n={sp,v,X,Y,z:0,alt:0,head:Math.random()*Math.PI*2,t:0,timer:0,state:"idle",fr:0,seed:Math.random()*1000,sub:sp==="cocodrilo",born:0,fxCol:water?[170,215,245]:b==="nieve"?[235,242,250]:b==="desierto"?[226,204,150]:[120,170,80]};
+  const V=SPECIES[sp].vars(b),I=individual(sp,V[Math.floor(Math.random()*V.length)]),v=I.v,n={sp,v,tint:I.tint,tc:new Map(),last:null,X,Y,z:0,alt:0,head:Math.random()*Math.PI*2,t:0,timer:0,state:"idle",fr:0,seed:Math.random()*1000,sub:sp==="cocodrilo",born:0,fxCol:water?[170,215,245]:b==="nieve"?[235,242,250]:b==="desierto"?[226,204,150]:[120,170,80]};
   if(sp==="ave"){// las aves entran volando desde un borde, sin remolino
     const left=Math.random()<.5;sx=(left?-30:W+30)+cx;sy=Math.random()*H*.6+cy;n.X=sy+sx/2;n.Y=sy-sx/2;const dX=(W/2+cx-sx),dY=(H/2+cy-sy);n.head=Math.atan2(dY-dX/2,dY+dX/2)+(Math.random()-.5)*.6;
     n.alt=60+Math.random()*40;n.speed=46+Math.random()*20;n.born=9}
   if(sp==="mariposa")n.alt=8+Math.random()*10;if(sp==="murcielago")n.alt=22+Math.random()*18;if(sp==="topo")n.timer=1+Math.random()*3;if(sp==="insectos")n.alt=4+Math.random()*6;
+  // precarga todas las poses: así nunca desaparece al girar o cambiar de fotograma
+  if(sp!=="insectos")for(let r=0;r<(sp==="topo"?1:4);r++)for(let f=0;f<2;f++)faunaSprite(sp,v,r,f,n.sub&&sp==="cocodrilo");
   fauna.push(n)}
 const FX_IN=.8,FX_OUT=.7;
 /** Cada criatura es única: tamaño y colores con variación individual (tono, saturación, luz). */
-function individual(sp,base){const p=Object.assign({},base);if(sp==="insectos")return p;const d=defaults(sp),dh=(Math.random()-.5)*36,dl=(Math.random()-.5)*.12;
-  (FURNI[sp].colors||[]).forEach(([k])=>{const c=p[k]||d[k],n=parseInt(c.slice(1),16),[h,s,l]=rgb2hsl(n>>16&255,n>>8&255,n&255);p[k]=hex(hsl2rgb(h+dh+(Math.random()-.5)*10,Math.min(1,Math.max(0,s+(Math.random()-.5)*.15)),Math.min(.95,Math.max(.06,l+dl))))});
-  p.s=+((d.s||1)*(.82+Math.random()*.36)).toFixed(2);return p}
-function dropFaunaSprites(n){const pre=n.sp+"|"+JSON.stringify(n.v)+"|";for(const k of[...faunaSprites.keys()])if(k.startsWith(pre))faunaSprites.delete(k)}
-function faunaUpdate(now,dt){pumpFauna(performance.now()+2);pumpDecor(performance.now()+(decorQ.length>40?5:3));if(!view)return;
+/** Cada criatura es única sin renderizar 8 sprites propios: comparte la forma base (variante + talla en 3 escalones)
+ *  y lleva su propio tinte (tono, saturación, luz) aplicado al vuelo sobre el sprite ya hecho. */
+function individual(sp,base){const p=Object.assign({},base);if(sp==="insectos")return{v:p,tint:null};const d=defaults(sp);
+  p.s=+((d.s||1)*[.86,1,1.14][Math.floor(Math.random()*3)]).toFixed(2);
+  return{v:p,tint:[(Math.random()-.5)*40,(Math.random()-.5)*.18,(Math.random()-.5)*.12]}}
+function tinted(n,s,key){let c=n.tc.get(key);if(c)return c;if(!n.tint){n.tc.set(key,s.cv);return s.cv}
+  const[dh,ds,dl]=n.tint,w=s.cv.width,h=s.cv.height;c=document.createElement("canvas");c.width=w;c.height=h;const x=c.getContext("2d");x.drawImage(s.cv,0,0);
+  const im=x.getImageData(0,0,w,h),d=im.data;for(let o=0;o<d.length;o+=4){if(!d[o+3])continue;const[hh,ss,ll]=rgb2hsl(d[o],d[o+1],d[o+2]);if(ll<.12)continue;
+    const q=hsl2rgb(hh+dh,Math.min(1,Math.max(0,ss+ds)),Math.min(.95,Math.max(.04,ll+dl)));d[o]=q[0];d[o+1]=q[1];d[o+2]=q[2]}
+  x.putImageData(im,0,0);n.tc.set(key,c);return c}
+/** Cualquier pose ya lista de esta criatura (respaldo mientras llega la pose exacta). */
+function anyPose(n){for(let r=0;r<4;r++)for(let f=0;f<2;f++){const s=faunaSprites.get(faunaKey(n.sp,n.v,r,f,n.sp==="cocodrilo"&&n.sub));if(s)return{s,key:r+"|"+f}}return null}
+function faunaUpdate(now,dt){pumpFauna(performance.now()+(faunaQ.length>8?4:2));pumpDecor(performance.now()+(decorQ.length>40?5:3));if(!view)return;
   const target=Math.round(WS.fauna*28);if(fauna.filter(n=>n.dying==null).length<target&&Math.random()<.25)spawnFauna();
   let extra=fauna.filter(n=>n.dying==null).length-target;
   const{W,H,cx,cy}=view;
   for(let i=fauna.length-1;i>=0;i--){const n=fauna[i];n.t+=dt;n.born+=dt;
-    const sx=n.X-n.Y-cx,sy=(n.X+n.Y)/2-cy;if(sx<-220||sx>W+220||sy<-280||sy>H+280){dropFaunaSprites(n);fauna.splice(i,1);continue}
+    const sx=n.X-n.Y-cx,sy=(n.X+n.Y)/2-cy;if(sx<-220||sx>W+220||sy<-280||sy>H+280){fauna.splice(i,1);continue}
     if(n.dying==null&&(extra>0||!WS.species[n.sp])){n.dying=0;extra--}
-    if(n.dying!=null){n.dying+=dt;if(n.dying>FX_OUT){dropFaunaSprites(n);fauna.splice(i,1);continue}}
+    if(n.dying!=null){n.dying+=dt;if(n.dying>FX_OUT){fauna.splice(i,1);continue}}
+    // el remolino sigue girando hasta que la criatura tiene al menos un sprite listo
+    if(n.sp!=="insectos"&&!n.last&&n.born>FX_IN*.5){const a=anyPose(n);if(a)n.last=a;else n.born-=FX_IN*.3}
     if(n.born<FX_IN*.55)continue;
     const step=(spd,turn)=>{n.head+=(noise3(n.t*.7,n.seed,0,3)-.5)*turn*dt;return[n.X+Math.cos(n.head)*spd*dt,n.Y+Math.sin(n.head)*spd*dt]};
     switch(n.sp){
@@ -740,10 +777,11 @@ function faunaItems(items,top,cx,cy){for(const n of fauna){const g=n.sp==="pez"|
         for(let i=0;i<9;i++){const ox=(noise3(n.t*1.6,i*3.1,n.seed,1)-.5)*16,oy=(noise3(n.t*1.6,i*3.1+40,n.seed,1)-.5)*9,oz=n.alt+(noise3(n.t*1.3,i,n.seed+9,1)-.5)*8;
           if(glow){const a=.35+.65*Math.max(0,Math.sin(n.t*3+i*1.7));lctx.fillStyle=`rgba(255,241,168,${a*.35})`;lctx.fillRect(Math.round(gx+ox)-1,Math.round(gy+oy-oz)-1,3,3);lctx.fillStyle=`rgba(255,250,210,${a})`}
           else lctx.fillStyle="rgba(30,30,34,.85)";lctx.fillRect(Math.round(gx+ox),Math.round(gy+oy-oz),1,1)}lctx.globalAlpha=1}});continue}
-    const rot=n.sp==="topo"?0:rotOf(Math.cos(n.head),Math.sin(n.head)),s=faunaSprite(n.sp,n.v,rot,n.fr,n.sp==="cocodrilo"&&n.sub),sp=SPECIES[n.sp];
+    const rot=n.sp==="topo"?0:rotOf(Math.cos(n.head),Math.sin(n.head));let s=faunaSprite(n.sp,n.v,rot,n.fr,n.sp==="cocodrilo"&&n.sub),sp=SPECIES[n.sp];
     if(sp.shadow){const a=Math.max(.08,.28-n.z/400)*alpha;items.push({k:2,r:R,b:[gx-4,gx+4,gy-2,gy+2],ord:0,draw:()=>{lctx.fillStyle=`rgba(0,0,0,${a})`;lctx.fillRect(Math.round(gx)-3,Math.round(gy),7,1);lctx.fillRect(Math.round(gx)-2,Math.round(gy)-1,5,1);lctx.fillRect(Math.round(gx)-2,Math.round(gy)+1,5,1)}})}
+    let cv;if(s){const key=rot+"|"+n.fr+"|"+(n.sub?1:0);cv=tinted(n,s,key);n.last={s,key}}else if(n.last){s=n.last.s;cv=tinted(n,s,n.last.key)}
     if(!s)continue;const X0=n.X-16,Y0=n.Y-16,sx=Math.round(X0-Y0-cx-s.originX),sy=Math.round((X0+Y0)/2-g-n.z-cy-s.originY),under=n.sp==="pez"&&n.z<.5;
-    const it={k:2,r:R,b:[sx,sx+s.width,sy,sy+s.height],ord:1,draw:()=>{lctx.globalAlpha=(under?.55:1)*Math.max(0,alpha);lctx.drawImage(s.cv,sx,sy);lctx.globalAlpha=1}};
+    const it={k:2,r:R,b:[sx,sx+s.width,sy,sy+s.height],ord:1,draw:()=>{lctx.globalAlpha=(under?.55:1)*Math.max(0,alpha);lctx.drawImage(cv,sx,sy);lctx.globalAlpha=1}};
     if(sp.fly&&n.z>30)top.push(it);else items.push(it)}}
 {const i=$("wfauna"),o=$("wfaunaV");const f=()=>o.textContent=WS.fauna?Math.round(WS.fauna*28)+" criaturas":"sin fauna";i.value=WS.fauna;f();
   i.addEventListener("input",()=>{WS.fauna=+i.value;f();save()});
@@ -905,3 +943,4 @@ $("catFile").addEventListener("change",async e=>{const file=e.target.files[0];e.
 $("labSave").addEventListener("click",()=>{const it=addItem({type,params:P,rot,name:itemName(type)});note("Guardado en el catálogo como «"+it.name+"».")});
 
 buildPanel();buildGlobal();setRot(0);buildPalUI();refreshSrc();refreshClipCat();show(location.hash.slice(1)||"mundo");requestAnimationFrame(loop);setTimeout(thumbs,1500);
+}

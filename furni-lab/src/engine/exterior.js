@@ -36,29 +36,77 @@ const roughen=(f,amt,s=.4,seed=7)=>amt?(x,y,z)=>(f(x,y,z)+(noise3(x*s,y*s,z*s,se
 const groundCut=f=>(x,y,z)=>Math.max(f(x,y,z),-z);
 
 // ---------- árboles ----------
+/** Caja envolvente de una lista de esferas [x,y,z,r]: envuelve un SDF caro para no evaluarlo lejos. */
+function boundSpheres(f,list,pad=1.5){let a=[1e9,1e9,1e9],b=[-1e9,-1e9,-1e9];for(const[x,y,z,r]of list){a=[Math.min(a[0],x-r),Math.min(a[1],y-r),Math.min(a[2],z-r)];b=[Math.max(b[0],x+r),Math.max(b[1],y+r),Math.max(b[2],z+r)]}
+  return list.length?bounded(f,a[0]-pad,a[1]-pad,a[2]-pad,b[0]+pad,b[1]+pad,b[2]+pad):f}
+// ---------- hojas vectoriales ----------
+/** Una hoja es un contorno vectorial: media anchura en función de t∈[0,1] a lo largo del nervio.
+ *  skew mueve el punto más ancho (≈ base <1 … punta >1), tip afila la punta, lobes hace lóbulos, notch abre la base. */
+const LEAF_SHAPES={oval:{name:"Ovalada",skew:1,tip:.85},lanceolada:{name:"Lanceolada",skew:.85,tip:1.25,wmul:.6},corazon:{name:"Acorazonada",skew:.6,tip:.9,notch:.2},
+  lobulada:{name:"Lobulada (arce)",skew:.8,tip:.6,lobes:3,wmul:1.3},redonda:{name:"Redonda",skew:1,tip:.45,wmul:1.3},aguja:{name:"Aguja",skew:1,tip:2.2,wmul:.35},
+  flor:{name:"Flor",skew:1,tip:.3,wmul:1.6,lobes:2.5}};
+function leafHalf(sh,t){if(t<=0||t>=1)return 0;let v=Math.pow(Math.sin(Math.PI*Math.pow(t,sh.skew)),sh.tip)*.5;if(sh.lobes)v*=.55+.45*Math.abs(Math.cos(sh.lobes*Math.PI*t));return v}
+const stampCache=new Map();
+/** Rasteriza la hoja vectorial (supermuestreo 3×3) a un sello de píxeles con su propio sombreado:
+ *  1 cuerpo · 2 borde iluminado · 3 borde en sombra · 4 nervio central. Se cachea por forma/tamaño/ángulo. */
+function leafStamp(shName,len,wid,ang){const sh=LEAF_SHAPES[shName]||LEAF_SHAPES.oval,A=((Math.round(ang/(Math.PI*2)*32)%32)+32)%32,Ln=Math.max(1.5,Math.round(len*2)/2),Wd=Math.round(wid*20)/20,key=shName+"|"+Ln+"|"+Wd+"|"+A;
+  let s=stampCache.get(key);if(s)return s;
+  const a=A/32*Math.PI*2,ca=Math.cos(a),sa=Math.sin(a),R=Math.ceil(Ln)+1,w=2*R+1,d=new Uint8Array(w*w),hw=Wd*(sh.wmul||1)*Ln,inside=(px,py)=>{const u=px*ca+py*sa,v=-px*sa+py*ca,t=u/Ln,hh=leafHalf(sh,t)*hw;
+      return Math.abs(v)<=hh&&!(sh.notch&&t<sh.notch*(1-Math.abs(v)/(hh+1e-6)))};
+  for(let y=0;y<w;y++)for(let x=0;x<w;x++){let c=0;for(let sy=0;sy<3;sy++)for(let sx=0;sx<3;sx++)if(inside(x-R+(sx+.5)/3-.5,y-R+(sy+.5)/3-.5))c++;if(c>=4)d[y*w+x]=1}
+  if(!d.some(v=>v))d[R*w+R]=1;
+  const e=new Uint8Array(w*w);for(let y=0;y<w;y++)for(let x=0;x<w;x++){const k=y*w+x;if(!d[k])continue;
+    const up=y>0&&d[k-w],dn=y<w-1&&d[k+w],rt=x<w-1&&d[k+1];const px=x-R,py=y-R,u=px*ca+py*sa,v=-px*sa+py*ca,t=u/Ln;
+    e[k]=!up&&Ln>=3.5?2:(!dn||!rt)&&Ln>=3?3:Ln>=6&&!sh.lobes&&Math.abs(v)<.5&&t>.12&&t<.8?4:1}
+  s={w,x0:-R,y0:-R,d:e,R};stampCache.set(key,s);if(stampCache.size>6000)stampCache.clear();return s}
+const leafMix=(a,b)=>{const A=parseInt(a.slice(1),16),B=parseInt(b.slice(1),16),c=s=>Math.round(((A>>s&255)+(B>>s&255))/2);return"#"+((1<<24)|(c(16)<<16)|(c(8)<<8)|c(0)).toString(16).slice(1)};
+const darkRamp=m=>({...m,ramp:[m.ramp[0],m.ramp[0],m.ramp[0],m.ramp[1],m.ramp[1],m.ramp[2]]});
+/** Follaje: reparte hojas sobre la superficie de cada masa de la copa (espiral de Fibonacci + jitter),
+ *  más una capa interior más oscura para que los huecos tengan profundidad. env: [cx,cy,cz,rx,ry,rz]. */
+function leafCanopy(env,o){const r=rng(((o.seed|0)*7919+13)||1),items=[],sz=o.size,la=Math.max(1.2,sz*sz*Math.max(.25,o.wid*(LEAF_SHAPES[o.shape]?.wmul||1))*.45);
+  const mats=[mat(o.c2,{shift:.09}),mat(leafMix(o.c2,o.c3),{shift:.09}),mat(o.c3,{shift:.09})];const SN=o.snow?mats.push(SNOW())-1:-1;
+  const FL=o.flowers>0&&o.cf?mats.push(mat(o.cf,{step:.06}))-1:-1;
+  env.forEach((c,ei)=>{const area=4*Math.PI*((c[3]*c[4]+c[3]*c[5]+c[4]*c[5])/3),n=Math.min(700,Math.round(o.dens*area/la*.8));
+    for(let k=0;k<n;k++){const zz=1-2*(k+.5)/n,rad=Math.sqrt(1-zz*zz),ph=k*2.39996+r()*.6;let dir=[rad*Math.cos(ph)+(r()-.5)*.15,rad*Math.sin(ph)+(r()-.5)*.15,zz];
+      const inner=k%3===0,rf=inner?.7+r()*.14:.9+r()*.18,x=c[0]+dir[0]*c[3]*rf,y=c[1]+dir[1]*c[4]*rf,z=c[2]+dir[2]*c[5]*rf;if(z<.6)continue;
+      let hid=false;for(let ej=0;ej<env.length;ej++){if(ej===ei)continue;const d=env[ej],q=((x-d[0])/d[3])**2+((y-d[1])/d[4])**2+((z-d[2])/d[5])**2;if(q<.55){hid=true;break}}if(hid)continue;
+      const nn=N3([dir[0]/c[3],dir[1]/c[4],dir[2]/c[5]]),dd=N3([nn[0]+(r()-.5)*1.1,nn[1]+(r()-.5)*1.1,nn[2]+(r()-.5)*1.1-(o.droop||0)*2.2]);
+      const cn=noise3(x*.18,y*.18,z*.18,17)+(r()-.5)*.35,ci=o.mix<=0?0:cn<.5-o.mix*.35?0:cn>.5+o.mix*.35?2:o.mix>.15?1:0;
+      let m=ci,sh=null,len=sz*(.75+r()*.5),wid=o.wid*(.8+r()*.4);
+      if(SN>=0&&nn[2]>.45+(noise3(x*.3,y*.3,z*.3,5)-.5)*.5&&!inner)m=SN;
+      if(FL>=0&&!inner&&r()<o.flowers*.22){m=FL;sh="flor";len=Math.max(2,sz*.7);wid=.6}
+      items.push({x,y,z,nx:nn[0],ny:nn[1],nz:nn[2],dx:dd[0],dy:dd[1],dz:dd[2],len,wid,m,sh,e:ei,dl:inner?-1:0})}});
+  return{items,mats,shape:o.shape,env}}
+const LEAF_PARAMS=[["lsize","Tamaño de hoja (px)",2,9,.5,4.5],["lwid","Anchura de hoja",.25,1.2,.05,.55],["ldens","Densidad de follaje",.3,2,.05,1],["lmix","Mezcla de color",0,1,.05,.35]];
+const LEAF_SELECT=["lshape","Forma de hoja",Object.entries(LEAF_SHAPES).filter(([k])=>k!=="flor").map(([k,s])=>[k,s.name]),"oval"];
 function treeParts(p,leaves){const r=rng((p.seed|0)||1);r();const segs=[],tips=[];
-  const grow=(a,dir,len,rad,lvl)=>{if(segs.length>=46)return;const b=add3(a,dir,len);segs.push(rcone(a,b,rad,Math.max(.55,rad*.72)));
+  const pts=[],bpts=[];const grow=(a,dir,len,rad,lvl)=>{if(segs.length>=46)return;const b=add3(a,dir,len);segs.push(rcone(a,b,rad,Math.max(.55,rad*.72)));pts.push([...a,rad],[...b,rad]);
     if(lvl<=0){tips.push(b);return}const[u,v]=perp(dir);
     for(let i=0;i<p.branches;i++){const az=i/p.branches*Math.PI*2+r()*1.2+(p.twist||0)*lvl*1.3,sp=p.spread*(.7+r()*.6)*Math.PI/180;
       let nd=add3(add3(dir.map(q=>q*Math.cos(sp)),u,Math.sin(sp)*Math.cos(az)),v,Math.sin(sp)*Math.sin(az));
       nd[2]-=(p.droop||0)*.9*(1-lvl/(p.levels+1));grow(b,N3(nd),len*(.6+r()*.2),rad*.66,lvl-1)}};
   grow([16,16,0],N3([(r()-.5)*.25,(r()-.5)*.25,1]),p.h*.62,p.trunk,p.levels);
-  let ext=0,top=0;const blobs=[];
+  let ext=0,top=0;const blobs=[],env=[];
   if(leaves)for(const t of tips){if(r()>p.leaf)continue;const s=(3.6+r()*2.6)*p.canopy,dr=p.droop||0,c=[t[0]+(r()-.5)*2,t[1]+(r()-.5)*2,t[2]-s*dr*.6];
-    blobs.push(ellipsoid(c[0],c[1],c[2],s,s,s*(1+dr*.9)));ext=Math.max(ext,Math.abs(c[0]-16)+s,Math.abs(c[1]-16)+s);top=Math.max(top,c[2]+s)}
+    blobs.push(ellipsoid(c[0],c[1],c[2],s,s,s*(1+dr*.9)));env.push([c[0],c[1],c[2],s,s,s*(1+dr*.9)]);bpts.push([c[0],c[1],c[2],s*(1+dr*.9)+2]);ext=Math.max(ext,Math.abs(c[0]-16)+s,Math.abs(c[1]-16)+s);top=Math.max(top,c[2]+s)}
   for(const t of tips){ext=Math.max(ext,Math.abs(t[0]-16)+1,Math.abs(t[1]-16)+1);top=Math.max(top,t[2]+1)}
-  return{segs,blobs,ext,top}}
+  return{segs,blobs,ext,top,pts,bpts,env}}
 FURNI.arbol={name:"Árbol",cat:"arboles",params:[["seed","Semilla",1,500,1,11],["h","Altura del tronco",12,60,1,30],["trunk","Grosor del tronco",1.2,5,.2,2.6],["levels","Niveles de ramas",1,3,1,2],
-  ["branches","Ramas por nivel",2,4,1,3],["spread","Apertura (°)",10,75,1,38],["twist","Torsión",0,1,.05,.3],["droop","Caída (sauce)",0,1,.05,0],["canopy","Tamaño de copa",.5,1.8,.05,1.1],["leaf","Densidad de hojas",.3,1,.05,1]],
-  toggles:[["snow","Nieve",false]],colors:[["c1","Corteza","#6b4a2f"],["c2","Hojas","#4f9e3a"]],
+  ["branches","Ramas por nivel",2,4,1,3],["spread","Apertura (°)",10,75,1,38],["twist","Torsión",0,1,.05,.3],["droop","Caída (sauce)",0,1,.05,0],["canopy","Tamaño de copa",.5,1.8,.05,1.1],["leaf","Masas de copa",.3,1,.05,1],...LEAF_PARAMS],
+  selects:[LEAF_SELECT],toggles:[["hojas","Hojas vectoriales",true],["snow","Nieve",false]],colors:[["c1","Corteza","#6b4a2f"],["c2","Hojas","#4f9e3a"],["c3","Hojas 2","#8cc63f"]],
   build(p){const T0=treeParts(p,true),bark=mat(p.c1,{pattern:barkPat}),lf=mat(p.c2,{shift:.09,pattern:leafPat});
-    const parts=[{sdf:union(...T0.segs),mat:bark,pick:snowPick(p.snow,null)}];
-    if(T0.blobs.length)parts.push({sdf:roughen(smoothUnion(2.2,...T0.blobs),1.6),mat:lf,pick:snowPick(p.snow,null)});
+    const parts=[{sdf:boundSpheres(union(...T0.segs),T0.pts),mat:bark,pick:snowPick(p.snow,null)}];
+    if(p.hojas&&T0.env.length){// núcleo oscuro raymarcheado + hojas sueltas encima
+      const core=T0.env.map(c=>ellipsoid(c[0],c[1],c[2],c[3]*.78,c[4]*.78,c[5]*.78));
+      parts.push({sdf:boundSpheres(smoothUnion(2,...core),T0.env.map(c=>[c[0],c[1],c[2],Math.max(c[3],c[5])]),1),mat:darkRamp(lf)});
+      const leaves=leafCanopy(T0.env,{seed:p.seed,size:p.lsize,wid:p.lwid,dens:p.ldens,mix:p.lmix,shape:p.lshape||"oval",droop:p.droop,c2:p.c2,c3:p.c3||p.c2,snow:p.snow});
+      return{footprint:[1,1],height:Math.ceil(T0.top+p.lsize+3),slack:Math.ceil(Math.max(10,T0.ext+p.lsize-12)),parts,leaves}}
+    if(T0.blobs.length)parts.push({sdf:boundSpheres(roughen(smoothUnion(2.2,...T0.blobs),1.6),T0.bpts,2),mat:lf,pick:snowPick(p.snow,null)});
     return{footprint:[1,1],height:Math.ceil(T0.top+3),slack:Math.ceil(Math.max(10,T0.ext-12)),parts}},stack:p=>p.h};
 FURNI.arbol_muerto={name:"Árbol seco",cat:"arboles",params:[["seed","Semilla",1,500,1,5],["h","Altura",12,60,1,34],["trunk","Grosor",1.2,5,.2,2.4],["levels","Niveles",1,3,1,3],
   ["branches","Ramas por nivel",2,4,1,2],["spread","Apertura (°)",10,80,1,42],["twist","Torsión",0,1,.05,.6]],toggles:[["snow","Nieve",false]],colors:[["c1","Corteza","#5c4a3a"]],
   build(p){const T0=treeParts({...p,droop:0},false);return{footprint:[1,1],height:Math.ceil(T0.top+3),slack:Math.ceil(Math.max(10,T0.ext-12)),
-    parts:[{sdf:union(...T0.segs),mat:mat(p.c1,{pattern:barkPat}),pick:snowPick(p.snow,null)}]}},stack:p=>p.h};
+    parts:[{sdf:boundSpheres(union(...T0.segs),T0.pts),mat:mat(p.c1,{pattern:barkPat}),pick:snowPick(p.snow,null)}]}},stack:p=>p.h};
 FURNI.pino={name:"Pino",cat:"arboles",params:[["h","Altura",24,90,1,52],["tiers","Pisos de ramas",2,8,1,5],["rad","Radio",6,16,.5,11],["jag","Dentado",0,1,.05,.6],["trunk","Grosor del tronco",1,4,.2,2]],
   toggles:[["snow","Nieve",false]],colors:[["c1","Corteza","#5c3d26"],["c2","Agujas","#2f6b3f"]],
   build(p){const tiers=[],th=p.h*.78/p.tiers*1.7;
@@ -67,7 +115,7 @@ FURNI.pino={name:"Pino",cat:"arboles",params:[["h","Altura",24,90,1,52],["tiers"
         return Math.max((H2(dx,dy)-rad)*.7,zb-z,z-zb-th)})}
     const lf=mat(p.c2,{shift:.08,pattern:leafPat});
     return{footprint:[1,1],height:Math.ceil(p.h*.18+(p.tiers-1)*(p.h*.78/p.tiers)*.82+th+2),slack:Math.ceil(Math.max(10,p.rad-12)),
-      parts:[{sdf:cylinder(16,16,p.trunk,0,p.h*.4),mat:mat(p.c1,{pattern:barkPat})},{sdf:union(...tiers),mat:lf,pick:snowPick(p.snow,null)}]}},stack:p=>p.h};
+      parts:[{sdf:cylinder(16,16,p.trunk,0,p.h*.4),mat:mat(p.c1,{pattern:barkPat})},{sdf:bounded(union(...tiers),16-p.rad-1,16-p.rad-1,p.h*.15,16+p.rad+1,16+p.rad+1,p.h*1.25),mat:lf,pick:snowPick(p.snow,null)}]}},stack:p=>p.h};
 FURNI.palmera={name:"Palmera",cat:"arboles",params:[["seed","Semilla",1,500,1,3],["h","Altura",24,80,1,48],["curve","Curvatura",0,16,.5,8],["segs","Segmentos",4,12,1,8],
   ["fronds","Hojas",4,10,1,7],["flen","Largo de hoja",8,22,1,15],["droop","Caída de hojas",0,1,.05,.6],["coco","Cocos",0,5,1,3]],colors:[["c1","Tronco","#8a6a45"],["c2","Hojas","#5fa83a"],["c3","Cocos","#6b4a2f"]],
   build(p){const r=rng((p.seed|0)||1);r();const az=r()*Math.PI*2,P=t=>[16+Math.cos(az)*p.curve*t*t,16+Math.sin(az)*p.curve*t*t,p.h*t];
@@ -94,11 +142,16 @@ FURNI.tronco={name:"Tronco caído",cat:"arboles",params:[["len","Largo",12,30,1,
       pick:(x,y,z,nx,ny,nz)=>Math.abs(nx)>.85?wood:nz>.55&&noise3(x*.3,y*.3,z*.3,8)<p.moss?moss:null}]}},stack:p=>p.r*2};
 
 // ---------- vegetación ----------
-FURNI.arbusto={name:"Arbusto",cat:"vegetacion",params:[["seed","Semilla",1,500,1,9],["size","Tamaño",.5,1.8,.05,1],["n","Masas",3,14,1,7],["rough","Rugosidad",0,1,.05,.5],["flowers","Flores",0,1,.05,.3]],
-  colors:[["c1","Hojas","#3f8a34"],["c2","Flores","#ff3fcd"]],
-  build(p){const r=rng((p.seed|0)||1),s=p.size,bl=[];for(let i=0;i<p.n;i++){const a=r()*Math.PI*2,d=Math.sqrt(r())*7*s,rr=(3.6+r()*3)*s;bl.push(sphere(16+Math.cos(a)*d,16+Math.sin(a)*d,rr*.75+r()*4*s,rr))}
+FURNI.arbusto={name:"Arbusto",cat:"vegetacion",params:[["seed","Semilla",1,500,1,9],["size","Tamaño",.5,1.8,.05,1],["n","Masas",3,14,1,7],["rough","Rugosidad",0,1,.05,.5],["flowers","Flores",0,1,.05,.3],
+    ["lsize","Tamaño de hoja (px)",2,9,.5,3.5],["lwid","Anchura de hoja",.25,1.2,.05,.6],["ldens","Densidad de follaje",.3,2,.05,1.1],["lmix","Mezcla de color",0,1,.05,.3]],
+  selects:[[...LEAF_SELECT.slice(0,3),"redonda"]],toggles:[["hojas","Hojas vectoriales",true]],
+  colors:[["c1","Hojas","#3f8a34"],["c2","Flores","#ff3fcd"],["c3","Hojas 2","#6fae3a"]],
+  build(p){const r=rng((p.seed|0)||1),s=p.size,bl=[],bp=[],env=[];for(let i=0;i<p.n;i++){const a=r()*Math.PI*2,d=Math.sqrt(r())*7*s,rr=(3.6+r()*3)*s;const cz=rr*.75+r()*4*s;bl.push(sphere(16+Math.cos(a)*d,16+Math.sin(a)*d,cz,rr));bp.push([16+Math.cos(a)*d,16+Math.sin(a)*d,rr*.75,rr+4*s+2]);env.push([16+Math.cos(a)*d,16+Math.sin(a)*d,cz,rr,rr,rr])}
     const fl=mat(p.c2,{step:.06});
-    return{footprint:[1,1],height:Math.ceil(16*s+6),slack:Math.ceil(Math.max(10,12*s-12)),parts:[{sdf:groundCut(roughen(smoothUnion(2.4,...bl),2.4*p.rough+.4,.45)),mat:mat(p.c1,{shift:.09,pattern:leafPat}),
+    if(p.hojas){const lf=mat(p.c1,{shift:.09}),core=env.map(c=>sphere(c[0],c[1],c[2],c[3]*.8));
+      return{footprint:[1,1],height:Math.ceil(16*s+p.lsize+6),slack:Math.ceil(Math.max(10,12*s+p.lsize-12)),parts:[{sdf:groundCut(boundSpheres(smoothUnion(2,...core),bp,2)),mat:darkRamp(lf)}],
+        leaves:leafCanopy(env,{seed:p.seed,size:p.lsize,wid:p.lwid,dens:p.ldens,mix:p.lmix,shape:p.lshape||"redonda",c2:p.c1,c3:p.c3||p.c1,flowers:p.flowers,cf:p.c2})}}
+    return{footprint:[1,1],height:Math.ceil(16*s+6),slack:Math.ceil(Math.max(10,12*s-12)),parts:[{sdf:groundCut(boundSpheres(roughen(smoothUnion(2.4,...bl),2.4*p.rough+.4,.45),bp,2.5)),mat:mat(p.c1,{shift:.09,pattern:leafPat}),
       pick:p.flowers>0?(x,y,z)=>noise3(x*.8,y*.8,z*.8,3)>1-p.flowers*.28?fl:null:null}]}},stack:p=>10*p.size};
 FURNI.seto={name:"Seto",cat:"vegetacion",params:[["n","Largo (baldosas)",1,3,1,2],["h","Altura",6,26,1,14],["depth","Grosor",5,16,1,10],["rough","Rugosidad",0,1,.05,.5],["flowers","Flores",0,1,.05,0]],
   colors:[["c1","Hojas","#3f8a34"],["c2","Flores","#ffffff"]],
