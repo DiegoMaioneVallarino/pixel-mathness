@@ -1,0 +1,440 @@
+{
+  "schema": 1,
+  "detector": "public-stroke-faces-v1",
+  "reference": "visible-interiors-v1",
+  "minIoU": 0.5,
+  "cases": [
+    {
+      "id": "sealed",
+      "title": "Contorno cerrado",
+      "style": "aislado",
+      "split": "development",
+      "width": 5,
+      "height": 5,
+      "elapsedMs": 1.8530349999999771,
+      "predictions": [
+        [
+          12
+        ]
+      ],
+      "expected": 1,
+      "matches": [
+        {
+          "label": "1",
+          "prediction": 0,
+          "iou": 1
+        }
+      ],
+      "missed": [],
+      "extra": [],
+      "merges": [],
+      "fragments": [],
+      "overlap": [
+        {
+          "prediction": 0,
+          "area": 1,
+          "links": [
+            {
+              "label": "1",
+              "intersection": 1,
+              "iou": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "gap",
+      "title": "Brecha de un píxel",
+      "style": "aislado",
+      "split": "development",
+      "width": 5,
+      "height": 5,
+      "elapsedMs": 0.470199000000008,
+      "predictions": [],
+      "expected": 1,
+      "matches": [],
+      "missed": [
+        "1"
+      ],
+      "extra": [],
+      "merges": [],
+      "fragments": [],
+      "overlap": []
+    },
+    {
+      "id": "diagonal",
+      "title": "Cierre diagonal",
+      "style": "aislado",
+      "split": "development",
+      "width": 5,
+      "height": 5,
+      "elapsedMs": 0.3844919999999945,
+      "predictions": [
+        [
+          12
+        ]
+      ],
+      "expected": 1,
+      "matches": [
+        {
+          "label": "1",
+          "prediction": 0,
+          "iou": 1
+        }
+      ],
+      "missed": [],
+      "extra": [],
+      "merges": [],
+      "fragments": [],
+      "overlap": [
+        {
+          "prediction": 0,
+          "area": 1,
+          "links": [
+            {
+              "label": "1",
+              "intersection": 1,
+              "iou": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "white",
+      "title": "Interior blanco opaco",
+      "style": "aislado",
+      "split": "development",
+      "width": 5,
+      "height": 4,
+      "elapsedMs": 0.567214000000007,
+      "predictions": [
+        [
+          6
+        ]
+      ],
+      "expected": 1,
+      "matches": [
+        {
+          "label": "1",
+          "prediction": 0,
+          "iou": 1
+        }
+      ],
+      "missed": [],
+      "extra": [],
+      "merges": [],
+      "fragments": [],
+      "overlap": [
+        {
+          "prediction": 0,
+          "area": 1,
+          "links": [
+            {
+              "label": "1",
+              "intersection": 1,
+              "iou": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "void",
+      "title": "Vacío entre raíces",
+      "style": "espacio negativo",
+      "split": "development",
+      "width": 5,
+      "height": 5,
+      "elapsedMs": 0.4522529999999847,
+      "predictions": [
+        [
+          12
+        ]
+      ],
+      "expected": 0,
+      "matches": [],
+      "missed": [],
+      "extra": [
+        0
+      ],
+      "merges": [],
+      "fragments": [],
+      "overlap": [
+        {
+          "prediction": 0,
+          "area": 1,
+          "links": []
+        }
+      ]
+    },
+    {
+      "id": "inkless",
+      "title": "Hoja sin tinta",
+      "style": "follaje",
+      "split": "development",
+      "width": 5,
+      "height": 4,
+      "elapsedMs": 0.33591899999998986,
+      "predictions": [],
+      "expected": 1,
+      "matches": [],
+      "missed": [
+        "1"
+      ],
+      "extra": [],
+      "merges": [],
+      "fragments": [],
+      "overlap": []
+    },
+    {
+      "id": "shared",
+      "title": "Dos caras con borde común",
+      "style": "partes contiguas",
+      "split": "development",
+      "width": 7,
+      "height": 5,
+      "elapsedMs": 0.4827380000000119,
+      "predictions": [
+        [
+          16
+        ],
+        [
+          18
+        ]
+      ],
+      "expected": 2,
+      "matches": [
+        {
+          "label": "1",
+          "prediction": 0,
+          "iou": 1
+        },
+        {
+          "label": "2",
+          "prediction": 1,
+          "iou": 1
+        }
+      ],
+      "missed": [],
+      "extra": [],
+      "merges": [],
+      "fragments": [],
+      "overlap": [
+        {
+          "prediction": 0,
+          "area": 1,
+          "links": [
+            {
+              "label": "1",
+              "intersection": 1,
+              "iou": 1
+            }
+          ]
+        },
+        {
+          "prediction": 1,
+          "area": 1,
+          "links": [
+            {
+              "label": "2",
+              "intersection": 1,
+              "iou": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "merged",
+      "title": "Dos interiores comunicados",
+      "style": "partes contiguas",
+      "split": "development",
+      "width": 7,
+      "height": 5,
+      "elapsedMs": 0.7047680000000014,
+      "predictions": [
+        [
+          16,
+          17,
+          18
+        ]
+      ],
+      "expected": 2,
+      "matches": [],
+      "missed": [
+        "1",
+        "2"
+      ],
+      "extra": [
+        0
+      ],
+      "merges": [
+        0
+      ],
+      "fragments": [],
+      "overlap": [
+        {
+          "prediction": 0,
+          "area": 3,
+          "links": [
+            {
+              "label": "1",
+              "intersection": 1,
+              "iou": 0.3333333333333333
+            },
+            {
+              "label": "2",
+              "intersection": 1,
+              "iou": 0.3333333333333333
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dither",
+      "title": "Trama sin piezas",
+      "style": "textura",
+      "split": "holdout",
+      "width": 7,
+      "height": 5,
+      "elapsedMs": 0.6075329999999894,
+      "predictions": [
+        [
+          17
+        ]
+      ],
+      "expected": 0,
+      "matches": [],
+      "missed": [],
+      "extra": [
+        0
+      ],
+      "merges": [],
+      "fragments": [],
+      "overlap": [
+        {
+          "prediction": 0,
+          "area": 1,
+          "links": []
+        }
+      ]
+    },
+    {
+      "id": "canopy",
+      "title": "Follaje mixto",
+      "style": "follaje",
+      "split": "holdout",
+      "width": 10,
+      "height": 7,
+      "elapsedMs": 1.3917390000000012,
+      "predictions": [
+        [
+          22
+        ],
+        [
+          26,
+          27,
+          37
+        ]
+      ],
+      "expected": 3,
+      "matches": [
+        {
+          "label": "1",
+          "prediction": 0,
+          "iou": 1
+        },
+        {
+          "label": "2",
+          "prediction": 1,
+          "iou": 0.6666666666666666
+        }
+      ],
+      "missed": [
+        "3"
+      ],
+      "extra": [],
+      "merges": [],
+      "fragments": [],
+      "overlap": [
+        {
+          "prediction": 0,
+          "area": 1,
+          "links": [
+            {
+              "label": "1",
+              "intersection": 1,
+              "iou": 1
+            }
+          ]
+        },
+        {
+          "prediction": 1,
+          "area": 3,
+          "links": [
+            {
+              "label": "2",
+              "intersection": 2,
+              "iou": 0.6666666666666666
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ramita.png",
+      "title": "Ramita de tres hojas",
+      "style": "follaje dibujado",
+      "split": "holdout",
+      "width": 27,
+      "height": 20,
+      "elapsedMs": 5.632345999999984,
+      "predictions": [
+        [
+          194,
+          195,
+          196,
+          222,
+          223,
+          224,
+          250,
+          251,
+          252,
+          279,
+          280
+        ]
+      ],
+      "expected": 3,
+      "matches": [
+        {
+          "label": "1",
+          "prediction": 0,
+          "iou": 1
+        }
+      ],
+      "missed": [
+        "2",
+        "3"
+      ],
+      "extra": [],
+      "merges": [],
+      "fragments": [],
+      "overlap": [
+        {
+          "prediction": 0,
+          "area": 11,
+          "links": [
+            {
+              "label": "1",
+              "intersection": 11,
+              "iou": 1
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

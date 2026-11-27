@@ -1,3 +1,4 @@
+import { BenchmarkView } from "./pixelmathness/views/BenchmarkView";
 import { useRef, useState } from "react";
 import { TextureLabView } from "./pixelmathness/views/TextureLabView";
 import {
@@ -91,9 +92,10 @@ const [
     const [faceViews, setFaceViews] =
     useState<FaceView[]>([]);
 
+const [benchOpened, setBenchOpened] = useState(false);
 const [view, setView] =
     useState<
-        "analyzer" |
+        "analyzer" | "benchmark" |
         "texture" |
         "cuboid" |
         "vector"
@@ -434,6 +436,7 @@ setAssemblyHierarchy(
                 PixelMathness
             </h1>
 <div className="app-tabs">
+    <button onClick={() => { setBenchOpened(true); setView("benchmark"); }}>Banco de formas</button>
 
     <button
         onClick={() =>
@@ -466,6 +469,7 @@ setAssemblyHierarchy(
 </button>
 
 </div>
+{benchOpened && <div hidden={view !== "benchmark"}><BenchmarkView /></div>}
 {view === "texture" && (
     <TextureLabView />
 )}

@@ -1,0 +1,19 @@
+.bench { max-width: 1040px; margin: 2rem auto; text-align: left; }
+.bench-controls,.bench-images { display:flex; gap:1rem; align-items:center; flex-wrap:wrap; }
+.bench-layout { display:grid; grid-template-columns: minmax(170px, 1fr) minmax(0, 2fr); gap:1.5rem; }
+.bench-list { display:grid; align-content:start; gap:4px; }
+.bench-list button { display:flex; justify-content:space-between; gap:1rem; text-align:left; }
+.bench-list button[aria-pressed=true] { outline:2px solid #3986ed; }
+.bench article,.bench details { padding:1rem; border:1px solid #8893a455; border-radius:10px; }
+.bench details { margin-top:1rem; }
+.bench details label { display:block; margin:.75rem 0; }
+.bench figure { margin:0; }
+.bench figure canvas { width:clamp(82px,18vw,190px); height:auto; max-height:280px; object-fit:contain; image-rendering:pixelated; background:#606876; }
+.bench table { margin:1rem 0; border-collapse:collapse; }
+.bench th,.bench td { padding:.35rem .65rem; text-align:left; border-bottom:1px solid #8893a455; }
+.bench-key b:nth-of-type(1) { color:#26956c; }
+.bench-key b:nth-of-type(2) { color:#ad7919; }
+.bench-key b:nth-of-type(3) { color:#d45171; }
+@media(max-width:650px){.bench-layout{grid-template-columns:1fr}.bench-list{max-height:160px;overflow:auto}}
+.bench-editor { overflow:auto; padding-bottom:1rem; }
+.bench-editor canvas { height:auto; max-width:none; touch-action:none; cursor:crosshair; image-rendering:pixelated; background:#63717b; }
